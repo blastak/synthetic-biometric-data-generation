@@ -16,8 +16,9 @@ from torchvision.utils import make_grid
 
 
 class Generator(nn.Module):
-    def __init__(self):
+    def __init__(self, ngpu):
         super(Generator, self).__init__()
+        self.ngpu = ngpu
         self.fc = nn.Linear(512, 1024*4*4, bias=False)
         self.bn1d = nn.BatchNorm1d(1024*4*4)
         self.relu = nn.ReLU()
@@ -48,8 +49,9 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self):
+    def __init__(self, ngpu):
         super(Discriminator, self).__init__()
+        self.ngpu = ngpu
         self.conv = nn.Sequential(
             nn.Conv2d(1, 128, 4, 2, 1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
@@ -92,6 +94,7 @@ if __name__ == '__main__':
     parser.add_argument('-bs', '--batch-size', type=int, default=64, help='Mini-batch size (default = xx)')
     parser.add_argument('-lr', '--learning-rate', type=float, default=0.0002, help='Learning rate (default = 0.0002)')
     parser.add_argument('-se', '--save-epochs', type=int, default=10, help='Freqnecy for saving checkpoints (in epochs) ')
+    parser.add_argument('--ngpu', type=int, default=1, help='Number of GPUs available. Use 0 for CPU mode')
     parser.add_argument('--display_on', action='store_true')
     args = parser.parse_args()
 
@@ -102,24 +105,15 @@ if __name__ == '__main__':
     learning_rate = args.learning_rate
     save_epochs = args.save_epochs
     display_on = args.display_on
-
-    experiment_dir = os.path.join('weights',experiment_name)
-    cnt=1
-    while True:
-        try:
-            os.makedirs(experiment_dir + '_tr%03d' % cnt)
-            experiment_dir += '_tr%03d' % cnt
-            break
-        except:
-            cnt+=1
+    nGPU = args.ngpu
 
     ########## torch environment settings
     manual_seed = 999
     random.seed(manual_seed)
     torch.manual_seed(manual_seed)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    torch.set_default_device(device)
+    device = torch.device('cuda' if (torch.cuda.is_available() and nGPU>0) else 'cpu')
+    torch.set_default_device(device) # working on torch>2.0.0
 
     ########## training dataset settings
     image_size = 64
@@ -133,15 +127,33 @@ if __name__ == '__main__':
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=device))
 
     ########## model settings
-    mymodel_G = Generator()
-    mymodel_D = Discriminator()
+    mymodel_D = Discriminator(nGPU)
+    mymodel_G = Generator(nGPU)
     # mymodel_G.apply(weights_init)
     # mymodel_D.apply(weights_init)
+    if device.type == 'cuda' and nGPU > 1:
+        try:
+            mymodel_D = nn.DataParallel(mymodel_D, list(range(nGPU)))
+            mymodel_G = nn.DataParallel(mymodel_G, list(range(nGPU)))
+        except Exception as e:
+            print('Exception!',str(e))
+            exit(1357)
 
     ########## loss function & optimizer settings
     bce_loss = nn.BCELoss()
     optimizerD = optim.Adam(mymodel_D.parameters(), lr=learning_rate, betas=(0.5, 0.999)) # THB논문에서는 beta에 대한 언급이 없다. DCGAN을 따라 하자
     optimizerG = optim.Adam(mymodel_G.parameters(), lr=learning_rate, betas=(0.5, 0.999))
+
+    ########## make saving folder
+    experiment_dir = os.path.join('weights', experiment_name)
+    cnt = 1
+    while True:
+        try:
+            os.makedirs(experiment_dir + '_tr%03d' % cnt)
+            experiment_dir += '_tr%03d' % cnt
+            break
+        except:
+            cnt += 1
 
     ########## training process
     fixed_noise = torch.randn(64, 512, device=device)
@@ -150,7 +162,7 @@ if __name__ == '__main__':
     for epoch in range(1,num_epochs+1):
         with tqdm(train_loader, unit='batch') as tq:
             mymodel_G.train()
-            total_loss_G = total_loss_D = 0.
+            total_loss_D = total_loss_G = 0.
             for inputs,_ in tq:
                 inputs = inputs.to(device)
                 ## Train with all-real batch : To maximize log(D(x))
@@ -189,18 +201,18 @@ if __name__ == '__main__':
             # print(f'Epoch {epoch}/{num_epochs} total_loss_D: {total_loss_D:.4f} total_loss_G: {total_loss_G:.4f}')
 
             if epoch % save_epochs == 0:
-                model_path_ckpt = os.path.join(experiment_dir, 'netG_epoch%d' % epoch)
-                torch.save({
-                    'epoch': epoch,
-                    'model_state_dict': mymodel_G.state_dict(),
-                    'optimizer_state_dict': optimizerG.state_dict()
-                }, model_path_ckpt + '.pth')
-
                 model_path_ckpt = os.path.join(experiment_dir, 'netD_epoch%d' % epoch)
                 torch.save({
                     'epoch': epoch,
                     'model_state_dict': mymodel_D.state_dict(),
                     'optimizer_state_dict': optimizerD.state_dict()
+                }, model_path_ckpt + '.pth')
+
+                model_path_ckpt = os.path.join(experiment_dir, 'netG_epoch%d' % epoch)
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': mymodel_G.state_dict(),
+                    'optimizer_state_dict': optimizerG.state_dict()
                 }, model_path_ckpt + '.pth')
 
                 mymodel_G.eval()
@@ -215,7 +227,7 @@ if __name__ == '__main__':
                     filepath = os.path.join(experiment_dir, 'montage_%d.jpg' % epoch)
                     cv2.imwrite(filepath,norm_image)
 
-            if epoch / num_epochs > 0.3 and best_loss_G > total_loss_G and 0 < total_loss_D < 1:
+            if epoch / num_epochs > 0.3 and best_loss_G > total_loss_G and 0.1 < total_loss_D < 2.0:
                 best_loss_G = total_loss_G
                 best_epoch = epoch
                 model_path_ckpt = os.path.join(experiment_dir, 'netG_best')
