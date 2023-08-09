@@ -2,14 +2,19 @@ import os
 import random
 import argparse
 
+import cv2
+import numpy as np
+from tqdm import tqdm
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
+from torchvision.utils import make_grid
 
-nc = 3
+
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
@@ -83,18 +88,20 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--name', type=str, default='experiment_name', help='Output model name')
     parser.add_argument('-tr', '--train-dir', type=str, default='train_dir', help='Input data directory for training')
-    parser.add_argument('-e', '--epochs', type=int, default=2000, help='Number of epochs (default = 1500)')
-    parser.add_argument('-bs', '--batch-size', type=int, default=32, help='Mini-batch size (default = 64)')
+    parser.add_argument('-e', '--epochs', type=int, default=200, help='Number of epochs (default = xxx)')
+    parser.add_argument('-bs', '--batch-size', type=int, default=64, help='Mini-batch size (default = xx)')
     parser.add_argument('-lr', '--learning-rate', type=float, default=0.0002, help='Learning rate (default = 0.0002)')
-    parser.add_argument('-se', '--save-epochs', type=int, default=100, help='Freqnecy for saving checkpoints (in epochs) ')
+    parser.add_argument('-se', '--save-epochs', type=int, default=10, help='Freqnecy for saving checkpoints (in epochs) ')
+    parser.add_argument('--display_on', action='store_true')
     args = parser.parse_args()
 
+    experiment_name = args.name
+    train_dir = args.train_dir
     num_epochs = args.epochs
     batch_size = args.batch_size
     learning_rate = args.learning_rate
-    experiment_name = args.name
-    train_dir = args.train_dir
     save_epochs = args.save_epochs
+    display_on = args.display_on
 
     experiment_dir = os.path.join('weights',experiment_name)
     cnt=1
@@ -112,7 +119,6 @@ if __name__ == '__main__':
     torch.manual_seed(manual_seed)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # device = 'cpu'
     torch.set_default_device(device)
 
     ########## training dataset settings
@@ -129,6 +135,8 @@ if __name__ == '__main__':
     ########## model settings
     mymodel_G = Generator()
     mymodel_D = Discriminator()
+    # mymodel_G.apply(weights_init)
+    # mymodel_D.apply(weights_init)
 
     ########## loss function & optimizer settings
     bce_loss = nn.BCELoss()
@@ -136,57 +144,95 @@ if __name__ == '__main__':
     optimizerG = optim.Adam(mymodel_G.parameters(), lr=learning_rate, betas=(0.5, 0.999))
 
     ########## training process
-    for epoch in range(num_epochs):
-        total_loss_G = total_loss_D = 0.
-        for i, (inputs,_) in enumerate(train_loader):
-            inputs = inputs.to(device)
-            ## Train with all-real batch : To maximize log(D(x))
-            mymodel_D.zero_grad()
-            outputs = mymodel_D(inputs).view(-1)
-            labels_real = torch.ones(outputs.shape[0], dtype=torch.float)
-            loss_D_real = bce_loss(outputs, labels_real)
-            loss_D_real.backward() # BCE_loss는 reduce_mean이 default이므로 값이 scalar로 출력된다
+    fixed_noise = torch.randn(64, 512, device=device)
+    best_loss_G = 99999.
+    best_epoch = 'latest'
+    for epoch in range(1,num_epochs+1):
+        with tqdm(train_loader, unit='batch') as tq:
+            mymodel_G.train()
+            total_loss_G = total_loss_D = 0.
+            for inputs,_ in tq:
+                inputs = inputs.to(device)
+                ## Train with all-real batch : To maximize log(D(x))
+                mymodel_D.zero_grad()
+                outputs = mymodel_D(inputs).view(-1)
+                labels_real = torch.ones(outputs.shape[0], dtype=torch.float)
+                loss_D_real = bce_loss(outputs, labels_real)
+                loss_D_real.backward() # BCE_loss는 reduce_mean이 default이므로 값이 scalar로 출력된다
 
-            ## Train with all-fake batch : To maximize log(1 - D(G(z)))
-            noise = torch.randn(outputs.shape[0], 512)
-            fake = mymodel_G(noise)
-            outputs = mymodel_D(fake.detach()).view(-1) # 여기에서 G backward는 안하는거라서 detach함
-            labels_fake = torch.zeros_like(labels_real)
-            loss_D_fake = bce_loss(outputs, labels_fake)
-            loss_D_fake.backward()
-            ## update D
-            optimizerD.step()
+                ## Train with all-fake batch : To maximize log(1 - D(G(z)))
+                noise = torch.randn(outputs.shape[0], 512)
+                fake = mymodel_G(noise)
+                outputs = mymodel_D(fake.detach()).view(-1) # 여기에서 G backward는 안하는거라서 detach함
+                labels_fake = torch.zeros_like(labels_real)
+                loss_D_fake = bce_loss(outputs, labels_fake)
+                loss_D_fake.backward()
+                ## update D
+                optimizerD.step()
 
-            ## Train with all-fake batch : To maximize log(D(G(z)))
-            mymodel_G.zero_grad()
-            outputs = mymodel_D(fake).view(-1) # 생성을 다시 하지는 않고, 업데이트 된 D를 이용
-            loss_G = bce_loss(outputs, labels_real) # 생성자의 손실값을 알기위해 라벨을 '진짜'라고 입력
-            loss_G.backward()
-            ## update G
-            optimizerG.step()
+                ## Train with all-fake batch : To maximize log(D(G(z)))
+                mymodel_G.zero_grad()
+                outputs = mymodel_D(fake).view(-1) # 생성을 다시 하지는 않고, 업데이트 된 D를 이용
+                loss_G = bce_loss(outputs, labels_real) # 생성자의 손실값을 알기위해 라벨을 '진짜'라고 입력
+                loss_G.backward()
+                ## update G
+                optimizerG.step()
 
-            total_loss_D += loss_D_real.item() + loss_D_fake.item()
-            total_loss_G += loss_G.item()
-        total_loss_D = total_loss_D / len(train_loader)
-        total_loss_G = total_loss_G / len(train_loader)
-        print(f'Epoch {epoch + 1}/{num_epochs} Loss(D): {total_loss_D:.4f} Loss(G): {total_loss_G:.4f}')
+                tq.set_description(f'Epoch {epoch}/{num_epochs}')
+                tq.set_postfix(G_='%.4f'%loss_G.item(), D_real='%.4f'%loss_D_real.item(), D_fake='%.4f'%loss_D_fake.item())
 
-        if (epoch + 1) % save_epochs == 0:
-            model_path_ckpt = os.path.join(experiment_dir, 'netG_epoch%d' % (epoch + 1))
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': mymodel_G.state_dict(),
-                'optimizer_state_dict': optimizerG.state_dict()
-            }, model_path_ckpt + '.pth')
+                total_loss_D += loss_D_real.item() + loss_D_fake.item()
+                total_loss_G += loss_G.item()
 
-            model_path_ckpt = os.path.join(experiment_dir, 'netD_epoch%d' % (epoch + 1))
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': mymodel_D.state_dict(),
-                'optimizer_state_dict': optimizerD.state_dict()
-            }, model_path_ckpt + '.pth')
+            total_loss_D /= len(train_loader)
+            total_loss_G /= len(train_loader)
+            # print(f'Epoch {epoch}/{num_epochs} total_loss_D: {total_loss_D:.4f} total_loss_G: {total_loss_G:.4f}')
 
-    # # Save the trained model
-    # model_path_final = os.path.join(modeldir, netname)
-    # torch.save({'model_state_dict': mymodel.state_dict()}, model_path_final + '.pth')
-    # print('Saved model at:', model_path_final + '.pth')
+            if epoch % save_epochs == 0:
+                model_path_ckpt = os.path.join(experiment_dir, 'netG_epoch%d' % epoch)
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': mymodel_G.state_dict(),
+                    'optimizer_state_dict': optimizerG.state_dict()
+                }, model_path_ckpt + '.pth')
+
+                model_path_ckpt = os.path.join(experiment_dir, 'netD_epoch%d' % epoch)
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': mymodel_D.state_dict(),
+                    'optimizer_state_dict': optimizerD.state_dict()
+                }, model_path_ckpt + '.pth')
+
+                mymodel_G.eval()
+                with torch.no_grad():
+                    img = mymodel_G(fixed_noise).detach().cpu()
+                    montage = make_grid(img, nrow=8, normalize=True).permute(1,2,0).numpy()
+                    norm_image = cv2.normalize(montage, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+                    norm_image = norm_image.astype(np.uint8)
+                    if display_on:
+                        cv2.imshow('big',norm_image)
+                        cv2.waitKey(1)
+                    filepath = os.path.join(experiment_dir, 'montage_%d.jpg' % epoch)
+                    cv2.imwrite(filepath,norm_image)
+
+            if epoch / num_epochs > 0.3 and best_loss_G > total_loss_G and 0 < total_loss_D < 1:
+                best_loss_G = total_loss_G
+                best_epoch = epoch
+                model_path_ckpt = os.path.join(experiment_dir, 'netG_best')
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': mymodel_G.state_dict(),
+                    'optimizer_state_dict': optimizerG.state_dict()
+                }, model_path_ckpt + '.pth')
+
+                mymodel_G.eval()
+                with torch.no_grad():
+                    img = mymodel_G(fixed_noise).detach().cpu()
+                    montage = make_grid(img, nrow=8, normalize=True).permute(1, 2, 0).numpy()
+                    norm_image = cv2.normalize(montage, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+                    norm_image = norm_image.astype(np.uint8)
+                    filepath = os.path.join(experiment_dir, 'montage_best.jpg')
+                    cv2.imwrite(filepath, norm_image)
+
+    print('Finished training the model')
+    print('best_epoch:',best_epoch,', best_loss_G:',best_loss_G)
