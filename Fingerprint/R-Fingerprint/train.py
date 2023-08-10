@@ -95,6 +95,7 @@ if __name__ == '__main__':
     parser.add_argument('-lr', '--learning-rate', type=float, default=0.0002, help='Learning rate (default = 0.0002)')
     parser.add_argument('-se', '--save-epochs', type=int, default=10, help='Freqnecy for saving checkpoints (in epochs) ')
     parser.add_argument('--ngpu', type=int, default=1, help='Number of GPUs available. Use 0 for CPU mode')
+    parser.add_argument('--workers', type=int, default=2, help='Number of worker threads for data loading')
     parser.add_argument('--display_on', action='store_true')
     args = parser.parse_args()
 
@@ -106,6 +107,7 @@ if __name__ == '__main__':
     save_epochs = args.save_epochs
     display_on = args.display_on
     nGPU = args.ngpu
+    workers = args.workers
 
     ########## torch environment settings
     manual_seed = 999
@@ -124,7 +126,7 @@ if __name__ == '__main__':
                                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)), ## 이거 rgb 아닌가?
                                 transforms.Grayscale(),
                            ]))
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=device))
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=device), num_workers=workers)
 
     ########## model settings
     mymodel_D = Discriminator(nGPU)
@@ -133,6 +135,7 @@ if __name__ == '__main__':
     # mymodel_D.apply(weights_init)
     if device.type == 'cuda' and nGPU > 1:
         try:
+            torch.multiprocessing.set_start_method('spawn')
             mymodel_D = nn.DataParallel(mymodel_D, list(range(nGPU)))
             mymodel_G = nn.DataParallel(mymodel_G, list(range(nGPU)))
         except Exception as e:
