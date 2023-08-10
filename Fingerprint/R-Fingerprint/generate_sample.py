@@ -1,33 +1,38 @@
-# import os
-import random
-import torch
+import argparse
 import cv2
+import numpy as np
+import torch
+from torchvision.utils import make_grid
 
-from train import Generator
+from train_thumbnailGAN import Generator
 
 if __name__=='__main__':
-    # experiment_dir = os.path.join('weights','experiment_name_tr001')
-
-    ########## torch environment settings
-    # manual_seed = 999
-    # random.seed(manual_seed)
-    # torch.manual_seed(manual_seed)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ckpt_path', type=str, default='weights/thumbnail_gan_001/ckpt_epoch100.pth')
+    args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # device = 'cpu'
     torch.set_default_device(device)
 
-    mymodel = Generator()
-    mymodel.load_state_dict(torch.load('weights/experiment_name_tr001/netG_epoch2000.pth')['model_state_dict'])
-    mymodel.to(device)
+    mymodel_G = Generator()
 
-    mymodel.eval()
+    ckpt = torch.load(args.ckpt_path)
+    mymodel_G.load_state_dict(ckpt['modelG_state_dict'])
+    mymodel_G.to(device)
 
-    for i in range(30):
-        noise = torch.randn(1, 512)
-        fake = mymodel(noise).detach().cpu()
+    mymodel_G.eval()
 
-        img = fake.numpy().squeeze()
-        img = cv2.resize(img,(0,0),fx=4,fy=4)
-        cv2.imshow('img',img)
-        cv2.waitKey()
+    noise = torch.randn(64, 512)
+    img = mymodel_G(noise).detach().cpu()
+    montage = make_grid(img, nrow=8, normalize=True).permute(1, 2, 0).numpy()
+    norm_image = cv2.normalize(montage, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    norm_image = norm_image.astype(np.uint8)
+    cv2.imshow('big', norm_image)
+    cv2.waitKey(1)
+
+    noise = torch.randn(1, 512)
+    img = mymodel_G(noise).detach().cpu().numpy().squeeze()
+    norm_image = cv2.normalize(img, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    norm_image = norm_image.astype(np.uint8)
+    cv2.imshow('one', norm_image)
+    cv2.waitKey(0)

@@ -16,9 +16,8 @@ from torchvision.utils import make_grid
 
 
 class Generator(nn.Module):
-    def __init__(self, ngpu):
+    def __init__(self):
         super(Generator, self).__init__()
-        self.ngpu = ngpu
         self.fc = nn.Linear(512, 1024*4*4, bias=False)
         self.bn1d = nn.BatchNorm1d(1024*4*4)
         self.relu = nn.ReLU()
@@ -49,9 +48,8 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, ngpu):
+    def __init__(self):
         super(Discriminator, self).__init__()
-        self.ngpu = ngpu
         self.conv = nn.Sequential(
             nn.Conv2d(1, 128, 4, 2, 1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
@@ -129,8 +127,8 @@ if __name__ == '__main__':
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=device), num_workers=workers)
 
     ########## model settings
-    mymodel_D = Discriminator(nGPU)
-    mymodel_G = Generator(nGPU)
+    mymodel_D = Discriminator()
+    mymodel_G = Generator()
     # mymodel_G.apply(weights_init)
     # mymodel_D.apply(weights_init)
     if device.type == 'cuda' and nGPU > 1:
@@ -195,19 +193,29 @@ if __name__ == '__main__':
                 tq.set_postfix(G_='%.4f'%loss_G.item(), D_real='%.4f'%loss_D_real.item(), D_fake='%.4f'%loss_D_fake.item())
 
             if epoch % save_epochs == 0:
-                model_path_ckpt = os.path.join(experiment_dir, 'netD_epoch%d' % epoch)
-                torch.save({
-                    'epoch': epoch,
-                    'model_state_dict': mymodel_D.state_dict(),
-                    'optimizer_state_dict': optimizerD.state_dict()
-                }, model_path_ckpt + '.pth')
-
-                model_path_ckpt = os.path.join(experiment_dir, 'netG_epoch%d' % epoch)
-                torch.save({
-                    'epoch': epoch,
-                    'model_state_dict': mymodel_G.state_dict(),
-                    'optimizer_state_dict': optimizerG.state_dict()
-                }, model_path_ckpt + '.pth')
+                ckpt_path = os.path.join(experiment_dir, 'ckpt_epoch%d.pth' % epoch)
+                if isinstance(mymodel_G, nn.DataParallel):
+                    torch.save({
+                        'modelD_state_dict': mymodel_D.module.cpu().state_dict(),
+                        'modelG_state_dict': mymodel_G.module.cpu().state_dict(),
+                        'optimizerD_state_dict': optimizerD.state_dict(),
+                        'optimizerG_state_dict': optimizerG.state_dict(),
+                    },ckpt_path)
+                    mymodel_D.cuda()
+                    mymodel_G.cuda()
+                    ######## 아래는 load_state_dict할때 사용 예정
+                    # if isinstance(net, torch.nn.DataParallel):
+                    #     net = net.module
+                    # state_dict = torch.load(load_path, map_location=device))
+                    # net.load_state_dict(state_dict)
+                    ########
+                else:
+                    torch.save({
+                        'modelD_state_dict': mymodel_D.state_dict(),
+                        'modelG_state_dict': mymodel_G.state_dict(),
+                        'optimizerD_state_dict': optimizerD.state_dict(),
+                        'optimizerG_state_dict': optimizerG.state_dict(),
+                    },ckpt_path)
 
                 mymodel_G.eval()
                 with torch.no_grad():
