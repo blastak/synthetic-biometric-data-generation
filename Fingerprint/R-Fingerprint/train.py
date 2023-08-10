@@ -160,8 +160,6 @@ if __name__ == '__main__':
 
     ########## training process
     fixed_noise = torch.randn(64, 512, device=device)
-    best_loss_G = 99999.
-    best_epoch = 'latest'
     for epoch in range(1,num_epochs+1):
         with tqdm(train_loader, unit='batch') as tq:
             mymodel_G.train()
@@ -230,24 +228,4 @@ if __name__ == '__main__':
                     filepath = os.path.join(experiment_dir, 'montage_%d.jpg' % epoch)
                     cv2.imwrite(filepath,norm_image)
 
-            if epoch / num_epochs > 0.3 and best_loss_G > total_loss_G and 0.1 < total_loss_D < 2.0:
-                best_loss_G = total_loss_G
-                best_epoch = epoch
-                model_path_ckpt = os.path.join(experiment_dir, 'netG_best')
-                torch.save({
-                    'epoch': epoch,
-                    'model_state_dict': mymodel_G.state_dict(),
-                    'optimizer_state_dict': optimizerG.state_dict()
-                }, model_path_ckpt + '.pth')
-
-                mymodel_G.eval()
-                with torch.no_grad():
-                    img = mymodel_G(fixed_noise).detach().cpu()
-                    montage = make_grid(img, nrow=8, normalize=True).permute(1, 2, 0).numpy()
-                    norm_image = cv2.normalize(montage, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-                    norm_image = norm_image.astype(np.uint8)
-                    filepath = os.path.join(experiment_dir, 'montage_best.jpg')
-                    cv2.imwrite(filepath, norm_image)
-
     print('Finished training the model')
-    print('best_epoch:',best_epoch,', best_loss_G:',best_loss_G)
