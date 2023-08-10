@@ -170,8 +170,8 @@ if __name__ == '__main__':
                 mymodel_D.zero_grad()
                 outputs = mymodel_D(inputs).view(-1)
                 labels_real = torch.ones(outputs.shape[0], dtype=torch.float)
-                loss_D_real = bce_loss(outputs, labels_real)
-                loss_D_real.backward() # BCE_loss는 reduce_mean이 default이므로 값이 scalar로 출력된다
+                loss_D_real = bce_loss(outputs, labels_real) # BCE_loss는 reduce_mean이 default이므로 값이 scalar로 출력된다
+                loss_D_real.backward()
 
                 ## Train with all-fake batch : To maximize log(1 - D(G(z)))
                 noise = torch.randn(outputs.shape[0], 512)
@@ -193,13 +193,6 @@ if __name__ == '__main__':
 
                 tq.set_description(f'Epoch {epoch}/{num_epochs}')
                 tq.set_postfix(G_='%.4f'%loss_G.item(), D_real='%.4f'%loss_D_real.item(), D_fake='%.4f'%loss_D_fake.item())
-
-                total_loss_D += loss_D_real.item() + loss_D_fake.item()
-                total_loss_G += loss_G.item()
-
-            total_loss_D /= len(train_loader)
-            total_loss_G /= len(train_loader)
-            # print(f'Epoch {epoch}/{num_epochs} total_loss_D: {total_loss_D:.4f} total_loss_G: {total_loss_G:.4f}')
 
             if epoch % save_epochs == 0:
                 model_path_ckpt = os.path.join(experiment_dir, 'netD_epoch%d' % epoch)
