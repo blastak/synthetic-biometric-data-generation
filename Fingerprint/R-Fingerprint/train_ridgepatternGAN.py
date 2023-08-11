@@ -122,7 +122,7 @@ if __name__ == '__main__':
     parser.add_argument('-bs', '--batch-size', type=int, default=64, help='Mini-batch size (default = xx)')
     parser.add_argument('-lr', '--learning-rate', type=float, default=0.0002, help='Learning rate (default = 0.0002)')
     parser.add_argument('-se', '--save-epochs', type=int, default=10, help='Freqnecy for saving checkpoints (in epochs) ')
-    parser.add_argument('--ngpu', type=int, default=1, help='Number of GPUs available. Use 0 for CPU mode')
+    parser.add_argument('--gpu_ids', type=str, default='0', help='List IDs of GPU available. ex) --gpu_ids=0,1,2,3 , Use -1 for CPU mode')
     parser.add_argument('--workers', type=int, default=2, help='Number of worker threads for data loading')
     parser.add_argument('--display_on', action='store_true')
     args = parser.parse_args()
@@ -134,15 +134,18 @@ if __name__ == '__main__':
     learning_rate = args.learning_rate
     save_epochs = args.save_epochs
     display_on = args.display_on
-    nGPU = args.ngpu
     workers = args.workers
+    gpu_ids = []
+    for s in args.gpu_ids.split(','):
+        if int(s) >= 0:
+            gpu_ids.append(int(s))
 
     ########## torch environment settings
     manual_seed = 999
     random.seed(manual_seed)
     torch.manual_seed(manual_seed)
 
-    device = torch.device('cuda' if (torch.cuda.is_available() and nGPU>0) else 'cpu')
+    device = torch.device('cuda:{}'.format(gpu_ids[-1]) if (torch.cuda.is_available() and len(gpu_ids) > 0) else 'cpu')
     torch.set_default_device(device) # working on torch>2.0.0
 
     ########## training dataset settings
@@ -161,11 +164,11 @@ if __name__ == '__main__':
     mymodel_G = RidgePatternGenerator()
     # mymodel_G.apply(weights_init)
     # mymodel_D.apply(weights_init)
-    if device.type == 'cuda' and nGPU > 1:
+    if device.type == 'cuda' and len(gpu_ids) > 1:
         try:
             torch.multiprocessing.set_start_method('spawn')
-            mymodel_D = nn.DataParallel(mymodel_D, list(range(nGPU)))
-            mymodel_G = nn.DataParallel(mymodel_G, list(range(nGPU)))
+            mymodel_D = nn.DataParallel(mymodel_D, gpu_ids)
+            mymodel_G = nn.DataParallel(mymodel_G, gpu_ids)
         except Exception as e:
             print('Exception!',str(e))
             exit(1357)
