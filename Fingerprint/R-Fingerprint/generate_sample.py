@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torchvision.utils import make_grid
 
-from train_thumbnailGAN import Generator
+from train_thumbnailGAN import ThumbnailGenerator
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
@@ -14,7 +14,7 @@ if __name__=='__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.set_default_device(device)
 
-    mymodel_G = Generator()
+    mymodel_G = ThumbnailGenerator()
 
     ckpt = torch.load(args.ckpt_path)
     mymodel_G.load_state_dict(ckpt['modelG_state_dict'])

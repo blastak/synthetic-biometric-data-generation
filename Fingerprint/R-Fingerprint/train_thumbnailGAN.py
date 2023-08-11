@@ -15,9 +15,9 @@ import torchvision.transforms as transforms
 from torchvision.utils import make_grid
 
 
-class Generator(nn.Module):
+class ThumbnailGenerator(nn.Module):
     def __init__(self):
-        super(Generator, self).__init__()
+        super(ThumbnailGenerator, self).__init__()
         self.fc = nn.Linear(512, 1024*4*4, bias=False)
         self.bn1d = nn.BatchNorm1d(1024*4*4)
         self.relu = nn.ReLU()
@@ -47,9 +47,9 @@ class Generator(nn.Module):
         return x
 
 
-class Discriminator(nn.Module):
+class ThumbnailDiscriminator(nn.Module):
     def __init__(self):
-        super(Discriminator, self).__init__()
+        super(ThumbnailDiscriminator, self).__init__()
         self.conv = nn.Sequential(
             nn.Conv2d(1, 128, 4, 2, 1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
@@ -127,8 +127,8 @@ if __name__ == '__main__':
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=device), num_workers=workers)
 
     ########## model settings
-    mymodel_D = Discriminator()
-    mymodel_G = Generator()
+    mymodel_D = ThumbnailDiscriminator()
+    mymodel_G = ThumbnailGenerator()
     # mymodel_G.apply(weights_init)
     # mymodel_D.apply(weights_init)
     if device.type == 'cuda' and nGPU > 1:
@@ -161,11 +161,10 @@ if __name__ == '__main__':
     for epoch in range(1,num_epochs+1):
         with tqdm(train_loader, unit='batch') as tq:
             mymodel_G.train()
-            total_loss_D = total_loss_G = 0.
             for inputs,_ in tq:
                 inputs = inputs.to(device)
                 ## Train with all-real batch : To maximize log(D(x))
-                mymodel_D.zero_grad()
+                optimizerD.zero_grad()
                 outputs = mymodel_D(inputs).view(-1)
                 labels_real = torch.ones(outputs.shape[0], dtype=torch.float)
                 loss_D_real = bce_loss(outputs, labels_real) # BCE_loss는 reduce_mean이 default이므로 값이 scalar로 출력된다
@@ -182,7 +181,7 @@ if __name__ == '__main__':
                 optimizerD.step()
 
                 ## Train with all-fake batch : To maximize log(D(G(z)))
-                mymodel_G.zero_grad()
+                optimizerG.zero_grad()
                 outputs = mymodel_D(fake).view(-1) # 생성을 다시 하지는 않고, 업데이트 된 D를 이용
                 loss_G = bce_loss(outputs, labels_real) # 생성자의 손실값을 알기위해 라벨을 '진짜'라고 입력
                 loss_G.backward()
@@ -230,3 +229,4 @@ if __name__ == '__main__':
                     cv2.imwrite(filepath,norm_image)
 
     print('Finished training the model')
+    print('checkpoints are saved in "%s"' % experiment_dir)

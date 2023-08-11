@@ -15,63 +15,86 @@ import torchvision.transforms as transforms
 from torchvision.utils import make_grid
 
 
-class Generator(nn.Module):
-    def __init__(self):
-        super(Generator, self).__init__()
-        self.fc = nn.Linear(512, 1024*4*4, bias=False)
-        self.bn1d = nn.BatchNorm1d(1024*4*4)
-        self.relu = nn.ReLU()
-        self.deconvs = nn.Sequential(
-            nn.ConvTranspose2d(1024, 512, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(512),
-            nn.ReLU(True),
-
-            nn.ConvTranspose2d(512, 256, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(256),
-            nn.ReLU(True),
-
-            nn.ConvTranspose2d(256, 128, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(128),
-            nn.ReLU(True),
-
-            nn.ConvTranspose2d(128, 1, 4, 2, 1, bias=False),
-            nn.Tanh() # Binh의 논문과 다르게 BN은 넣지 않았음 (DCGAN에서는 안넣는듯해서)
-        )
+class ConvBatch(nn.Module):
+    def __init__(self, in_channels, out_channels, activation='leaky_relu', conv_type = 'conv', filter_size=4, stride=2, padding=1):
+        super(ConvBatch, self).__init__()
+        if conv_type == 'conv':
+            self.conv = nn.Conv2d(in_channels, out_channels, filter_size, stride, padding)
+        else:
+            self.conv = nn.ConvTranspose2d(in_channels, out_channels, filter_size, stride, padding)
+        if activation == 'leaky_relu':
+            self.act = nn.LeakyReLU(0.2)
+        else:
+            self.act = nn.ReLU()
+        self.bn = nn.BatchNorm2d(out_channels)
 
     def forward(self, x):
-        x = self.fc(x)
-        x = self.bn1d(x)
-        x = self.relu(x)
-        x = x.reshape(x.shape[0], -1, 4, 4)
-        x = self.deconvs(x)
+        x = self.conv(x)
+        x = self.bn(x)
+        x = self.act(x)
         return x
 
 
-class Discriminator(nn.Module):
+class RidgePatternGenerator(nn.Module):
     def __init__(self):
-        super(Discriminator, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(1, 128, 4, 2, 1, bias=False),
-            nn.LeakyReLU(0.2, inplace=True),
+        super(RidgePatternGenerator, self).__init__()
+        self.encoder1 = nn.Sequential(
+            nn.Conv2d(1, 64, 4, 2, 1),
+            nn.LeakyReLU(0.2)
+        )
+        self.encoder2 = ConvBatch(64, 128)
+        self.encoder3 = ConvBatch(128, 256)
+        self.encoder4 = ConvBatch(256, 512)
+        self.encoder5 = ConvBatch(512, 512)
+        self.encoder6 = ConvBatch(512, 1024)
+        self.decoder6 = ConvBatch(1024, 512, 'relu', 'deconv')
+        self.decoder5 = ConvBatch(512*2, 512, 'relu', 'deconv')
+        self.decoder4 = ConvBatch(512*2, 256, 'relu', 'deconv')
+        self.decoder3 = ConvBatch(256*2, 128, 'relu', 'deconv')
+        self.decoder2 = ConvBatch(128*2, 64, 'relu', 'deconv')
+        self.decoder1 = nn.Sequential(
+            nn.ConvTranspose2d(64*2, 1, 4, 2, 1),
+            nn.Tanh()
+        )
 
-            nn.Conv2d(128, 256, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2, inplace=True),
+    def forward(self, x):
+        e1 = self.encoder1(x)
+        e2 = self.encoder2(e1)
+        e3 = self.encoder3(e2)
+        e4 = self.encoder4(e3)
+        e5 = self.encoder5(e4)
+        e6 = self.encoder6(e5)
+        d6 = self.decoder6(e6)
+        d5 = self.decoder5(torch.cat((e5,d6),1))
+        d4 = self.decoder4(torch.cat((e4,d5),1))
+        d3 = self.decoder3(torch.cat((e3,d4),1))
+        d2 = self.decoder2(torch.cat((e2,d3),1))
+        d1 = self.decoder1(torch.cat((e1,d2),1))
+        return d1
 
-            nn.Conv2d(256, 512, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(512, 1024, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(1024),
-            nn.LeakyReLU(0.2, inplace=True),
-
-            nn.Conv2d(1024, 1, 4, 1, 0, bias=False),
+class RidgePatternDiscriminator(nn.Module):
+    def __init__(self):
+        super(RidgePatternDiscriminator, self).__init__()
+        self.convbn1 = nn.Sequential(
+            nn.Conv2d(1+1, 64, 4, 2, 1),
+            nn.LeakyReLU(0.2)
+        )
+        self.convbn2 = ConvBatch(64, 128)
+        self.convbn3 = ConvBatch(128, 256)
+        self.convbn4 = ConvBatch(256, 512, stride=1)
+        self.convbn5 = nn.Sequential(
+            nn.Conv2d(512, 1, 4, 1, 1),
             nn.Sigmoid()
         )
 
     def forward(self, x):
-        return self.conv(x)
+        x = self.convbn1(x)
+        x = self.convbn2(x)
+        x = self.convbn3(x)
+        x = self.convbn4(x)
+        x = self.convbn5(x)
+        return x
 
 
 # ``netG`` 와 ``netD`` 에 적용시킬 커스텀 가중치 초기화 함수
@@ -83,6 +106,13 @@ def weights_init(m):
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0)
 
+def set_requires_grad(nets, requires_grad=False):
+    if not isinstance(nets, list):
+        nets = [nets]
+    for net in nets:
+        if net is not None:
+            for param in net.parameters():
+                param.requires_grad = requires_grad
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -116,24 +146,19 @@ if __name__ == '__main__':
     torch.set_default_device(device) # working on torch>2.0.0
 
     ########## training dataset settings
-    image_size = 64
-    # train_dataset = dset.ImageFolder(root=train_dir, transform=transforms.Compose([
-    #                             transforms.Resize(image_size),
-    #                             transforms.CenterCrop(image_size),
-    #                             transforms.ToTensor(),
-    #                             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)), ## 이거 rgb 아닌가?
-    #                             transforms.Grayscale(),
-    #                        ]))
-    # train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=device), num_workers=workers)
-    train_dataset = dset.ImageFolder(root=train_dir,transform=transforms.ToTensor())
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=device))
-
-    for inputs,_ in train_loader:
-        print(inputs.shape)
+    image_size = 256
+    train_dataset = dset.ImageFolder(root=train_dir, transform=transforms.Compose([
+                                transforms.Resize(image_size),
+                                transforms.CenterCrop(image_size),
+                                transforms.ToTensor(),
+                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)), ## 이거 rgb 아닌가?
+                                transforms.Grayscale(),
+                           ]))
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=device), num_workers=workers)
 
     ########## model settings
-    mymodel_D = Discriminator()
-    mymodel_G = Generator()
+    mymodel_D = RidgePatternDiscriminator()
+    mymodel_G = RidgePatternGenerator()
     # mymodel_G.apply(weights_init)
     # mymodel_D.apply(weights_init)
     if device.type == 'cuda' and nGPU > 1:
@@ -146,9 +171,11 @@ if __name__ == '__main__':
             exit(1357)
 
     ########## loss function & optimizer settings
-    bce_loss = nn.BCELoss()
-    optimizerD = optim.Adam(mymodel_D.parameters(), lr=learning_rate, betas=(0.5, 0.999)) # THB논문에서는 beta에 대한 언급이 없다. DCGAN을 따라 하자
-    optimizerG = optim.Adam(mymodel_G.parameters(), lr=learning_rate, betas=(0.5, 0.999))
+    lambda_L1 = 100.
+    l1_loss = nn.L1Loss()
+    gan_loss = nn.BCEWithLogitsLoss()
+    optimizerD = optim.Adam(mymodel_D.parameters(), lr=learning_rate, betas=(0.5, 0.999), weight_decay=0.00001)
+    optimizerG = optim.Adam(mymodel_G.parameters(), lr=learning_rate, betas=(0.5, 0.999), weight_decay=0.00001)
 
     ########## make saving folder
     experiment_dir = os.path.join('weights', experiment_name)
@@ -162,36 +189,44 @@ if __name__ == '__main__':
             cnt += 1
 
     ########## training process
-    fixed_noise = torch.randn(64, 512, device=device)
+    tf = transforms.Compose([transforms.Resize(64,antialias=True),transforms.Resize(256,antialias=True)])
     for epoch in range(1,num_epochs+1):
+        fixed_input = {}
         with tqdm(train_loader, unit='batch') as tq:
             mymodel_G.train()
-            total_loss_D = total_loss_G = 0.
             for inputs,_ in tq:
-                inputs = inputs.to(device)
-                ## Train with all-real batch : To maximize log(D(x))
-                mymodel_D.zero_grad()
-                outputs = mymodel_D(inputs).view(-1)
-                labels_real = torch.ones(outputs.shape[0], dtype=torch.float)
-                loss_D_real = bce_loss(outputs, labels_real) # BCE_loss는 reduce_mean이 default이므로 값이 scalar로 출력된다
-                loss_D_real.backward()
+                real_B = inputs.to(device)
+                real_A = tf(real_B.detach())
 
-                ## Train with all-fake batch : To maximize log(1 - D(G(z)))
-                noise = torch.randn(outputs.shape[0], 512)
-                fake = mymodel_G(noise)
-                outputs = mymodel_D(fake.detach()).view(-1) # 여기에서 G backward는 안하는거라서 detach함
-                labels_fake = torch.zeros_like(labels_real)
-                loss_D_fake = bce_loss(outputs, labels_fake)
-                loss_D_fake.backward()
+                if len(fixed_input) == 0:
+                    fixed_input['real_A'] = real_A.detach()
+                    fixed_input['real_B'] = real_B.detach()
+
+                ## forward
+                fake_B = mymodel_G(real_A)
+
                 ## update D
+                set_requires_grad(mymodel_D, True)
+                optimizerD.zero_grad()
+                fake_AB = torch.cat((real_A, fake_B), 1) #fake
+                pred_fake = mymodel_D(fake_AB.detach())
+                loss_D_fake = gan_loss(pred_fake, torch.tensor(0.).expand_as(pred_fake))
+                real_AB = torch.cat((real_A, real_B), 1) #real
+                pred_real = mymodel_D(real_AB)
+                loss_D_real = gan_loss(pred_real, torch.tensor(1.).expand_as(pred_real))
+                loss_D = (loss_D_fake + loss_D_real) * 0.5
+                loss_D.backward()
                 optimizerD.step()
 
-                ## Train with all-fake batch : To maximize log(D(G(z)))
-                mymodel_G.zero_grad()
-                outputs = mymodel_D(fake).view(-1) # 생성을 다시 하지는 않고, 업데이트 된 D를 이용
-                loss_G = bce_loss(outputs, labels_real) # 생성자의 손실값을 알기위해 라벨을 '진짜'라고 입력
-                loss_G.backward()
                 ## update G
+                set_requires_grad(mymodel_D, False)
+                optimizerG.zero_grad()
+                fake_AB = torch.cat((real_A, fake_B), 1)
+                pred_fake = mymodel_D(fake_AB)
+                loss_G_GAN = gan_loss(pred_fake, torch.tensor(1.).expand_as(pred_real))
+                loss_G_L1 = l1_loss(fake_B, real_B)
+                loss_G = loss_G_GAN + loss_G_L1 * lambda_L1
+                loss_G.backward()
                 optimizerG.step()
 
                 tq.set_description(f'Epoch {epoch}/{num_epochs}')
@@ -224,14 +259,23 @@ if __name__ == '__main__':
 
                 mymodel_G.eval()
                 with torch.no_grad():
-                    img = mymodel_G(fixed_noise).detach().cpu()
-                    montage = make_grid(img, nrow=8, normalize=True).permute(1,2,0).numpy()
-                    norm_image = cv2.normalize(montage, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-                    norm_image = norm_image.astype(np.uint8)
+                    img_fake_B = mymodel_G(fixed_input['real_A']).detach().cpu()
+                    montage_fake_B = make_grid(img_fake_B, nrow=int(batch_size ** 0.5), normalize=True).permute(1, 2, 0).numpy()
+                    montage_fake_B = cv2.normalize(montage_fake_B, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F).astype(np.uint8)
+                    img_real_A = fixed_input['real_A'].cpu()
+                    montage_real_A = make_grid(img_real_A, nrow=int(batch_size ** 0.5), normalize=True).permute(1, 2, 0).numpy()
+                    montage_real_A = cv2.normalize(montage_real_A, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F).astype(np.uint8)
+                    img_real_B = fixed_input['real_B'].cpu()
+                    montage_real_B = make_grid(img_real_B, nrow=int(batch_size ** 0.5), normalize=True).permute(1, 2, 0).numpy()
+                    montage_real_B = cv2.normalize(montage_real_B, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F).astype(np.uint8)
                     if display_on:
-                        cv2.imshow('big',norm_image)
+                        cv2.imshow('condition images',montage_real_A)
+                        cv2.imshow('generated images',montage_fake_B)
+                        cv2.imshow('real images',montage_real_B)
                         cv2.waitKey(1)
-                    filepath = os.path.join(experiment_dir, 'montage_%d.jpg' % epoch)
-                    cv2.imwrite(filepath,norm_image)
+                    cv2.imwrite(os.path.join(experiment_dir, '_%d_condition_image.jpg' % epoch),montage_real_A)
+                    cv2.imwrite(os.path.join(experiment_dir, '_%d_generated_image.jpg' % epoch),montage_fake_B)
+                    cv2.imwrite(os.path.join(experiment_dir, '_%d_real_image.jpg' % epoch),montage_real_B)
 
     print('Finished training the model')
+    print('checkpoints are saved in "%s"' % experiment_dir)
