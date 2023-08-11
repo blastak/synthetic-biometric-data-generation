@@ -115,7 +115,7 @@ if __name__ == '__main__':
     random.seed(manual_seed)
     torch.manual_seed(manual_seed)
 
-    device = torch.device('cuda:{}'.format(gpu_ids[-1]) if (torch.cuda.is_available() and len(gpu_ids) > 0) else 'cpu')
+    device = torch.device('cuda:{}'.format(gpu_ids[0]) if (torch.cuda.is_available() and len(gpu_ids) > 0) else 'cpu')
     torch.set_default_device(device) # working on torch>2.0.0
 
     ########## training dataset settings
@@ -203,8 +203,8 @@ if __name__ == '__main__':
                         'optimizerD_state_dict': optimizerD.state_dict(),
                         'optimizerG_state_dict': optimizerG.state_dict(),
                     },ckpt_path)
-                    mymodel_D.cuda()
-                    mymodel_G.cuda()
+                    mymodel_D.cuda(gpu_ids[0])
+                    mymodel_G.cuda(gpu_ids[0])
                     ######## 아래는 load_state_dict할때 사용 예정
                     # if isinstance(net, torch.nn.DataParallel):
                     #     net = net.module
