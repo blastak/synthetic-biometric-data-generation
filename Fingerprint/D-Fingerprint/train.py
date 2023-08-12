@@ -30,9 +30,7 @@ class DFingerprintDataset(Dataset):
 
         tf = [transforms.ToTensor(), transforms.Resize((320, 320),antialias=True)]
         self.tf_A = transforms.Compose(tf)
-
-        tf += transforms.Grayscale()
-        self.tf_B = transforms.Compose(tf)
+        self.tf_B = transforms.Compose(tf + [transforms.Grayscale()])
 
     def __len__(self):
         return len(self.listA)
