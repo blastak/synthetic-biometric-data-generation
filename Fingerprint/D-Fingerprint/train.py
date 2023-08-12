@@ -1,4 +1,5 @@
 import os
+import random
 import argparse
 
 import cv2
@@ -8,10 +9,44 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
-import torchvision.datasets as dset
+from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as transforms
 from torchvision.utils import make_grid
+
+
+IMG_EXTENSIONS = [
+    '.jpg', '.JPG', '.jpeg', '.JPEG',
+    '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP',
+    '.tif', '.TIF', '.tiff', '.TIFF',
+]
+
+class DFingerprintDataset(Dataset):
+    def __init__(self, fingerprint_path, minutia_path):
+        self.minutia_path = minutia_path
+        self.fingerprint_path = fingerprint_path
+
+        self.listA = [f for f in os.listdir(minutia_path) if any(f.endswith(ext) for ext in IMG_EXTENSIONS)]
+        self.listB = [f for f in os.listdir(fingerprint_path) if any(f.endswith(ext) for ext in IMG_EXTENSIONS)]
+
+        tf = [transforms.ToTensor(), transforms.Resize((320, 320),antialias=True)]
+        self.tf_A = transforms.Compose(tf)
+
+        tf += transforms.Grayscale()
+        self.tf_B = transforms.Compose(tf)
+
+    def __len__(self):
+        return len(self.listA)
+
+    def __getitem__(self, index):
+        b,g,r = cv2.split(cv2.imread(os.path.join(self.minutia_path, self.listA[index])))
+        img_A = np.stack((b,g),2) # "g" is same as "r"
+
+        img_B = cv2.imread(os.path.join(self.fingerprint_path, self.listB[index]))
+
+        real_A = self.tf_A(img_A)
+        real_B = self.tf_B(img_B)
+
+        return real_A, real_B
 
 
 class ConvBatch(nn.Module):
@@ -34,11 +69,11 @@ class ConvBatch(nn.Module):
         return x
 
 
-class RidgePatternGenerator(nn.Module):
+class DFingerprintGenerator(nn.Module):
     def __init__(self):
-        super(RidgePatternGenerator, self).__init__()
+        super(DFingerprintGenerator, self).__init__()
         self.encoder1 = nn.Sequential(
-            nn.Conv2d(1, 64, 4, 2, 1),
+            nn.Conv2d(2, 64, 4, 2, 1),
             nn.LeakyReLU(0.2)
         )
         self.encoder2 = ConvBatch(64, 128)
@@ -72,11 +107,11 @@ class RidgePatternGenerator(nn.Module):
         return d1
 
 
-class RidgePatternDiscriminator(nn.Module):
+class DFingerprintDiscriminator(nn.Module):
     def __init__(self):
-        super(RidgePatternDiscriminator, self).__init__()
+        super(DFingerprintDiscriminator, self).__init__()
         self.convbn1 = nn.Sequential(
-            nn.Conv2d(1+1, 64, 4, 2, 1),
+            nn.Conv2d(2+1, 64, 4, 2, 1),
             nn.LeakyReLU(0.2)
         )
         self.convbn2 = ConvBatch(64, 128)
@@ -116,7 +151,8 @@ def set_requires_grad(nets, requires_grad=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--name', type=str, default='experiment_name', help='Output model name')
-    parser.add_argument('-tr', '--train-dir', type=str, default='train_dir', help='Input data directory for training')
+    parser.add_argument('--train-dir-minutia', type=str, default='minutia_dir', help='Input data directory for training')
+    parser.add_argument('--train-dir-fingerprint', type=str, default='fingerprint_dir', help='Input data directory for training')
     parser.add_argument('-e', '--epochs', type=int, default=200, help='Number of epochs (default = xxx)')
     parser.add_argument('-bs', '--batch-size', type=int, default=64, help='Mini-batch size (default = xx)')
     parser.add_argument('-lr', '--learning-rate', type=float, default=0.0002, help='Learning rate (default = 0.0002)')
@@ -127,7 +163,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     experiment_name = args.name
-    train_dir = args.train_dir
+    train_dir_m = args.train_dir_minutia
+    train_dir_f = args.train_dir_fingerprint
     num_epochs = args.epochs
     batch_size = args.batch_size
     learning_rate = args.learning_rate
@@ -144,19 +181,20 @@ if __name__ == '__main__':
     torch.set_default_device(device) # working on torch>2.0.0
 
     ########## training dataset settings
-    image_size = 256
-    train_dataset = dset.ImageFolder(root=train_dir, transform=transforms.Compose([
-                                transforms.Resize(image_size),
-                                transforms.CenterCrop(image_size),
-                                transforms.ToTensor(),
-                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)), ## 이거 rgb 아닌가?
-                                transforms.Grayscale(),
-                           ]))
+    image_size = 320
+    # train_dataset = dset.ImageFolder(root=train_dir, transform=transforms.Compose([
+    #                             transforms.Resize(image_size),
+    #                             transforms.CenterCrop(image_size),
+    #                             transforms.ToTensor(),
+    #                             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)), ## 이거 rgb 아닌가?
+    #                             transforms.Grayscale(),
+    #                        ]))
+    train_dataset = DFingerprintDataset(train_dir_f, train_dir_m)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=device), num_workers=workers)
 
     ########## model settings
-    mymodel_D = RidgePatternDiscriminator()
-    mymodel_G = RidgePatternGenerator()
+    mymodel_D = DFingerprintDiscriminator()
+    mymodel_G = DFingerprintGenerator()
     # mymodel_G.apply(weights_init)
     # mymodel_D.apply(weights_init)
     if device.type == 'cuda' and len(gpu_ids) > 1:
@@ -192,9 +230,9 @@ if __name__ == '__main__':
         fixed_input = {}
         with tqdm(train_loader, unit='batch') as tq:
             mymodel_G.train()
-            for inputs,_ in tq:
-                real_B = inputs.to(device)
-                real_A = tf(real_B.detach())
+            for inputsA, inputsB in tq:
+                real_A = inputsA.to(device)
+                real_B = inputsB.to(device)
 
                 if len(fixed_input) == 0:
                     fixed_input['real_A'] = real_A.detach()
@@ -241,12 +279,6 @@ if __name__ == '__main__':
                     },ckpt_path)
                     mymodel_D.cuda(gpu_ids[0])
                     mymodel_G.cuda(gpu_ids[0])
-                    ######## 아래는 load_state_dict할때 사용 예정
-                    # if isinstance(net, torch.nn.DataParallel):
-                    #     net = net.module
-                    # state_dict = torch.load(load_path, map_location=device))
-                    # net.load_state_dict(state_dict)
-                    ########
                 else:
                     torch.save({
                         'modelD_state_dict': mymodel_D.state_dict(),
@@ -263,6 +295,7 @@ if __name__ == '__main__':
                     img_real_A = fixed_input['real_A'].cpu()
                     montage_real_A = make_grid(img_real_A, nrow=int(batch_size ** 0.5), normalize=True).permute(1, 2, 0).numpy()
                     montage_real_A = cv2.normalize(montage_real_A, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F).astype(np.uint8)
+                    montage_real_A = np.stack((montage_real_A[:,:,0],montage_real_A[:,:,1],montage_real_A[:,:,1]),2)
                     img_real_B = fixed_input['real_B'].cpu()
                     montage_real_B = make_grid(img_real_B, nrow=int(batch_size ** 0.5), normalize=True).permute(1, 2, 0).numpy()
                     montage_real_B = cv2.normalize(montage_real_B, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F).astype(np.uint8)
