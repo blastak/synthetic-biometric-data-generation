@@ -19,5 +19,9 @@ class Base(ABC):
         pass
 
     @abstractmethod
-    def match(self, obj1, obj2):
+    def match(self, image1, image2):
+        pass
+
+    @abstractmethod
+    def match_bulk(self, filelist1, filelist2):
         pass
