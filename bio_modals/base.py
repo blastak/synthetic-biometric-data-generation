@@ -3,7 +3,7 @@ from typing import Optional
 
 
 class Base(ABC):
-    def __init__(self,license_path=''):
+    def __init__(self):
         pass
 
     @abstractmethod
@@ -23,5 +23,5 @@ class Base(ABC):
         pass
 
     @abstractmethod
-    def match_bulk(self, filelist1, filelist2):
+    def match_using_filelist(self, filelist1, filelist2):
         pass

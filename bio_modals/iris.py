@@ -1,12 +1,11 @@
 ### built-in modules
-from base import *
-import sys
 
 ### 3rd-party modules
-import clr  # package name : pythonnet
-import numpy as np
 from circle_fit import taubinSVD
 from scipy.fftpack import fft, ifft, fftshift
+
+### project modules
+from neurotecbase import *
 
 
 # https://stackoverflow.com/questions/31818050/round-number-to-nearest-integer/38239574#38239574
@@ -71,64 +70,19 @@ def gabor_convolve(im, nscale, minWaveLength, mult, sigmaOnf):
     return EO, filtersum
 
 
-class Iris(Base):
+class Iris(NeurotecBase):
     def __init__(self, license_path=''):
-        # license_path example : r'C:\Neurotec_Biometric_12_4_SDK\Bin\Win64_x64' (do not use DLLs where dotNET folder)
-        Base.__init__(self, license_path)
-        if license_path not in sys.path:
-            sys.path.append(license_path)
-            clr.AddReference('Neurotec')
-            clr.AddReference('Neurotec.Biometrics')
-            clr.AddReference('Neurotec.Biometrics.Client')
-            clr.AddReference('Neurotec.Licensing')
-            clr.AddReference('Neurotec.Media')
-        self.SDK = __import__('Neurotec')
-
-        # from Neurotec.Biometrics import NIris, NSubject, NTemplateSize, NBiometricStatus, NMatchingSpeed, NBiometricEngine, NTemplate, NFMinutiaFormat
-        # from Neurotec.Biometrics.Client import NBiometricClient
-        # from Neurotec.Licensing import NLicense
-        # from Neurotec.Images import NImage, NPixelFormat
-        # from Neurotec.IO import NBuffer
-
-        self.is_activated = False
-        self.biometricClient = self.SDK.Biometrics.Client.NBiometricClient()
-        pass
-
-    def __check_license_VeriEye(self):
-        if not self.is_activated:
-            modules_for_activating = "Biometrics.IrisExtraction,Biometrics.IrisMatching"
-            self.is_activated = self.SDK.Licensing.NLicense.ObtainComponents("/local", 5000, modules_for_activating)
-            if not self.is_activated:
-                exit('exit: no VeriEye license')
-        return self.is_activated
-
-    def __create_subject(self, image):
-        subject = self.SDK.Biometrics.NSubject()
-        iris = self.SDK.Biometrics.NIris()
-        if type(image) == str:
-            nimage = self.SDK.Images.NImage.FromFile(image)
-        else:
-            nimage = self.SDK.Images.NImage.FromData(self.SDK.Images.NPixelFormat.Grayscale8U, image.shape[1], image.shape[0], 0, image.shape[1], self.SDK.IO.NBuffer.FromArray(image.tobytes()))
-        iris.Image = nimage
-        subject.Irises.Add(iris)
-
-        status = self.biometricClient.CreateTemplate(subject)
-        quality = subject.GetTemplate().Irises.Records.get_Item(0).Quality
-        if status != self.SDK.Biometrics.NBiometricStatus.Ok:
-            return None, quality
-        return subject, quality
+        NeurotecBase.__init__(self, license_path)
+        self.check_license('Biometrics.IrisExtraction,Biometrics.IrisMatching')
 
     def extract_feature(self, image):
-        # 라이센스 체크
-        self.__check_license_VeriEye()
-
         center = [0, 0]
         in_radius = 0
         out_radius = 0
         iris_code = np.empty([])
 
         # iris, pupil detection
-        subject, quality = self.__create_subject(image)
+        subject, quality = self.create_subject(image)
         if subject is None:
             return False, quality, iris_code, center, in_radius, out_radius
 
@@ -177,56 +131,35 @@ class Iris(Base):
         return True, quality, iris_code, center, in_radius, out_radius
 
     def make_condition_image(self, feature_vector, position_angle_change: Optional[list] = None):
-        # iris_code,
-        # feature_vector는 iris code image, pos_ang_change 는 center(x,y), radius(inner,outer) 가 들어갈 수 있을 듯 하다
-        self.__check_license_VeriEye()
-        # ok, quality, iris_code = self.extract_feature(image)
-        # iris_code = feature_vector
-
         pass
 
     def make_pair_image(self, image):
-        self.__check_license_VeriEye()
-        # img_condi = self.make_condition_image(feature_vector)
-
         pass
 
-    def get_matching_score(self, subject1, subject2):
-        if any([subject1, subject2]) is None:
-            matching_score = -1
-        elif self.biometricClient.Verify(subject1, subject2) != self.SDK.Biometrics.NBiometricStatus.Ok:
-            matching_score = -1
-        else:
-            matching_score = subject1.MatchingResults.get_Item(0).Score
-        return matching_score
+    def create_subject(self, img_or_file):
+        subject = self.SDK.Biometrics.NSubject()
+        iris = self.SDK.Biometrics.NIris()
+        try:
+            if type(img_or_file) == str:
+                nimage = self.SDK.Images.NImage.FromFile(img_or_file)
+            elif type(img_or_file) == np.ndarray:
+                ww, hh = img_or_file.shape[1::-1]
+                cc = 1
+                if len(img_or_file.shape) == 3:
+                    cc = img_or_file.shape[2]
+                pixelformat = self.SDK.Images.NPixelFormat.Rgb8U if cc == 3 else self.SDK.Images.NPixelFormat.Grayscale8U
+                nimage = self.SDK.Images.NImage.FromData(pixelformat, ww, hh, 0, ww * cc, self.SDK.IO.NBuffer.FromArray(img_or_file.tobytes()))
+        except:
+            raise TypeError('type is not supported')
 
-    def match(self, image1, image2):
-        self.__check_license_VeriEye()
-        subject1, quality1 = self.__create_subject(image1)
-        subject2, quality2 = self.__create_subject(image2)
-        matching_score = self.get_matching_score(subject1, subject2)
-        return matching_score, quality1, quality2
+        iris.Image = nimage
+        subject.Irises.Add(iris)
 
-    def match_bulk(self, filelist1, filelist2=None):
-        self.__check_license_VeriEye()
-        N = len(filelist1)
-        mode = 'imposter' if filelist2 is None else 'genuine'
-        if mode == 'imposter':
-            M = N
-            filelist2 = filelist1
-        else:
-            M = len(filelist2)
-
-        scores = np.zeros([N, M], dtype=int)
-        for i in range(N):
-            subject1, quality1 = self.__create_subject(filelist1[i])
-            s = i + 1 if mode == 'imposter' else 0
-            for j in range(s, M):
-                subject2, quality2 = self.__create_subject(filelist2[j])
-                matching_score = self.get_matching_score(subject1, subject2)
-                scores[i, j] = matching_score
-                print(filelist1[i],filelist2[j],matching_score)
-        return scores
+        status = self.biometricClient.CreateTemplate(subject)
+        quality = subject.GetTemplate().Irises.Records.get_Item(0).Quality
+        if status != self.SDK.Biometrics.NBiometricStatus.Ok:
+            return status, None, quality
+        return status, subject, quality
 
 
 import cv2
@@ -236,9 +169,27 @@ if __name__ == '__main__':
     # img1 = cv2.imread(r"D:\Dataset\IITD\IITD Database\001\01_L.bmp",cv2.IMREAD_GRAYSCALE)
     # obj.extract_feature(img1)
 
+    ''' unit test of match() '''
+    img1 = cv2.imread(r"D:\Dataset\IITD\IITD Database\001\01_L.bmp", cv2.IMREAD_GRAYSCALE)
+    img2 = cv2.imread(r"D:\Dataset\IITD\IITD Database\001\10_L.bmp", cv2.IMREAD_GRAYSCALE)
+    print(obj.match(img1, img2)) # case1: grayscale
+    img1 = cv2.imread(r"D:\Dataset\IITD\IITD Database\001\01_L.bmp", cv2.IMREAD_COLOR)
+    img2 = cv2.imread(r"D:\Dataset\IITD\IITD Database\001\10_L.bmp", cv2.IMREAD_COLOR)
+    print(obj.match(img1, img2)) # case2: color
+    img1 = r"D:\Dataset\IITD\IITD Database\001\01_L.bmp"
+    img2 = r"D:\Dataset\IITD\IITD Database\001\10_L.bmp"
+    print(obj.match(img1, img2)) # case3: path
+    img1 = r'C:\weired\path'
+    img2 = r'C:\weired\path2'
+    try:
+        print(obj.match(img1, img2)) # case4: exception
+    except Exception as e:
+        print(str(e))
+
+    ''' unit test of match_using_filelist() '''
     filelist1 = [r"D:\Dataset\IITD\IITD Database\001\01_L.bmp", r"D:\Dataset\IITD\IITD Database\001\02_L.bmp", r"D:\Dataset\IITD\IITD Database\002\01_L.bmp"]
-    filelist2 = [r"D:\Dataset\IITD\IITD Database\002\02_L.bmp",r"D:\Dataset\IITD\IITD Database\004\01_L.bmp",r"D:\Dataset\IITD\IITD Database\001\10_L.bmp"]
-    imposter_match = obj.match_bulk(filelist1)
+    filelist2 = [r"D:\Dataset\IITD\IITD Database\002\02_L.bmp", r"D:\Dataset\IITD\IITD Database\004\01_L.bmp", r"D:\Dataset\IITD\IITD Database\001\10_L.bmp"]
+    imposter_match = obj.match_using_filelist(filelist1)
     print(imposter_match)
-    genuine_match = obj.match_bulk(filelist1,filelist2)
+    genuine_match = obj.match_using_filelist(filelist1, filelist2)
     print(genuine_match)
