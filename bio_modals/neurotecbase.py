@@ -6,8 +6,7 @@ import clr  # package name : pythonnet
 import numpy as np
 
 ### project modules
-from base import *
-
+from .base import *
 
 
 class NeurotecBase(Base):
@@ -53,9 +52,8 @@ class NeurotecBase(Base):
     def __get_matching_score(self, subject1, subject2):
         if any([subject1, subject2]) is None:
             matching_score = -1
-        elif self.biometricClient.Verify(subject1, subject2) != self.SDK.Biometrics.NBiometricStatus.Ok:
-            matching_score = -1
         else:
+            ok = self.biometricClient.Verify(subject1, subject2)
             matching_score = subject1.MatchingResults.get_Item(0).Score
         return matching_score
 
@@ -74,6 +72,7 @@ class NeurotecBase(Base):
         else:
             M = len(filelist2)
 
+        cnt = 0
         scores = np.zeros([N, M], dtype=int)
         for i in range(N):
             ok1, subject1, quality1 = self.create_subject(filelist1[i])
@@ -82,5 +81,7 @@ class NeurotecBase(Base):
                 ok2, subject2, quality2 = self.create_subject(filelist2[j])
                 matching_score = self.__get_matching_score(subject1, subject2)
                 scores[i, j] = matching_score
-                print(filelist1[i], filelist2[j], matching_score)
+
+                cnt += 1
+                print('cnt_%06d' % cnt, filelist1[i], filelist2[j], matching_score)
         return scores

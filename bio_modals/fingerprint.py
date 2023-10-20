@@ -3,7 +3,7 @@
 ### 3rd-party modules
 
 ### project modules
-from neurotecbase import *
+from .neurotecbase import *
 
 
 class Fingerprint(NeurotecBase):
@@ -37,11 +37,11 @@ class Fingerprint(NeurotecBase):
             raise TypeError('type is not supported')
 
         ''' code from Binh
-        image.HorzResolution = 500
-        image.VertResolution = 500
-        image.ResolutionIsAspectRatio = False
+        nimage.ResolutionIsAspectRatio = False
         biometricClient.FingersTemplateSize = NTemplateSize.Small
         '''
+        nimage.HorzResolution = 500
+        nimage.VertResolution = 500
 
         finger.Image = nimage
         subject.Fingers.Add(finger)

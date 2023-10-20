@@ -5,7 +5,7 @@ from circle_fit import taubinSVD
 from scipy.fftpack import fft, ifft, fftshift
 
 ### project modules
-from neurotecbase import *
+from .neurotecbase import *
 
 
 # https://stackoverflow.com/questions/31818050/round-number-to-nearest-integer/38239574#38239574
