@@ -35,6 +35,8 @@ class Fingerprint(NeurotecBase):
                     cc = img_or_file.shape[2]
                 pixelformat = self.SDK.Images.NPixelFormat.Rgb8U if cc == 3 else self.SDK.Images.NPixelFormat.Grayscale8U
                 nimage = self.SDK.Images.NImage.FromData(pixelformat, ww, hh, 0, ww * cc, self.SDK.IO.NBuffer.FromArray(img_or_file.tobytes()))
+            else:
+                raise Exception
         except:
             raise TypeError('type is not supported')
 
@@ -86,7 +88,7 @@ def unit_test_match_using_filelist(obj):
     filelist1 = [
         "../unit_test_data/Fingerprint/093/L3_03.BMP",
         "../unit_test_data/Fingerprint/094/R3_01.BMP",
-        "../unit_test_data/Fingerprint/227/R2_04.BMP",
+        "../unit_test_data/Fingerprint/227/L2_04.BMP",
     ]
     results, qualities1, qualities2 = obj.match_using_filelist(filelist1)
     print(results, qualities1, qualities2)
@@ -95,7 +97,7 @@ def unit_test_match_using_filelist(obj):
     filelist2 = [
         "../unit_test_data/Fingerprint/093/L3_04.BMP",
         "../unit_test_data/Fingerprint/094/R3_02.BMP",
-        "../unit_test_data/Fingerprint/227/R2_05.BMP",
+        "../unit_test_data/Fingerprint/227/L2_05.BMP",
     ]
     results, qualities1, qualities2 = obj.match_using_filelist(filelist1, filelist2)
     print(results, qualities1, qualities2)

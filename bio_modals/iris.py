@@ -151,6 +151,8 @@ class Iris(NeurotecBase):
                     cc = img_or_file.shape[2]
                 pixelformat = self.SDK.Images.NPixelFormat.Rgb8U if cc == 3 else self.SDK.Images.NPixelFormat.Grayscale8U
                 nimage = self.SDK.Images.NImage.FromData(pixelformat, ww, hh, 0, ww * cc, self.SDK.IO.NBuffer.FromArray(img_or_file.tobytes()))
+            else:
+                raise Exception
         except:
             raise TypeError('type is not supported')
 
