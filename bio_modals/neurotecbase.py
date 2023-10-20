@@ -1,12 +1,12 @@
 ### built-in modules
+import os
 import sys
 
 ### 3rd-party modules
 import clr  # package name : pythonnet
-import numpy as np
 
 ### project modules
-from .base import *
+from bio_modals.base import *
 
 
 class NeurotecBase(Base):
@@ -50,38 +50,65 @@ class NeurotecBase(Base):
         return self.is_activated
 
     def __get_matching_score(self, subject1, subject2):
-        if any([subject1, subject2]) is None:
+        if not all([subject1, subject2]):
+            matched = None
             matching_score = -1
         else:
-            ok = self.biometricClient.Verify(subject1, subject2)
+            status = self.biometricClient.Verify(subject1, subject2)
+            matched = True if status == self.SDK.Biometrics.NBiometricStatus.Ok else False
             matching_score = subject1.MatchingResults.get_Item(0).Score
-        return matching_score
+        return matched, matching_score
 
     def match(self, image1, image2):
-        ok1, subject1, quality1 = self.create_subject(image1)
-        ok2, subject2, quality2 = self.create_subject(image2)
+        subject1, quality1 = self.create_subject(image1)
+        subject2, quality2 = self.create_subject(image2)
         matching_score = self.__get_matching_score(subject1, subject2)
         return matching_score, quality1, quality2
 
     def match_using_filelist(self, filelist1, filelist2=None):
+        # mode=1 서로 다른 리스트끼리 비교 (중복성1 검증시 사용 가능)
+        # mode=2 하나의 리스트에서 서로 비교 (중복성2 검증시 사용 가능)
         N = len(filelist1)
-        mode = 'imposter' if filelist2 is None else 'genuine'
-        if mode == 'imposter':
+        mode = 2 if filelist2 is None else 1
+        if mode == 1:
+            M = len(filelist2)
+        else:
             M = N
             filelist2 = filelist1
+
+        subjects1 = [None] * N
+        qualities1 = [None] * N
+        for i in range(N):
+            print('create_subject in filelist1 %d/%d' % (i + 1, N))
+            subjects1[i], qualities1[i] = self.create_subject(filelist1[i])
+
+        if mode == 1:
+            subjects2 = [None] * M
+            qualities2 = [None] * M
+            for i in range(M):
+                print('create_subject in filelist2 %d/%d' % (i + 1, M))
+                subjects2[i], qualities2[i] = self.create_subject(filelist2[i])
         else:
-            M = len(filelist2)
+            subjects2 = subjects1
+            qualities2 = qualities1
 
         cnt = 0
-        scores = np.zeros([N, M], dtype=int)
+        results = []  # path1 path2 is_matched score
         for i in range(N):
-            ok1, subject1, quality1 = self.create_subject(filelist1[i])
-            s = i + 1 if mode == 'imposter' else 0
+            d, f = os.path.split(filelist1[i])
+            d = os.path.split(d)[-1]
+            path1 = os.path.join(d, f)
+            s = 0 if mode == 1 else i + 1
             for j in range(s, M):
-                ok2, subject2, quality2 = self.create_subject(filelist2[j])
-                matching_score = self.__get_matching_score(subject1, subject2)
-                scores[i, j] = matching_score
+                matched, matching_score = self.__get_matching_score(subjects1[i], subjects2[j])
+
+                d, f = os.path.split(filelist2[j])
+                d = os.path.split(d)[-1]
+                path2 = os.path.join(d, f)
+                line_txt = '%s %s %s %d' % (path1, path2, matched, matching_score)
+                results.append(line_txt)
 
                 cnt += 1
-                print('cnt_%06d' % cnt, filelist1[i], filelist2[j], matching_score)
-        return scores
+                print('%06d %s' % (cnt, line_txt))
+
+        return results, qualities1, qualities2

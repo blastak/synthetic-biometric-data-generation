@@ -1,9 +1,11 @@
 ### built-in modules
 
 ### 3rd-party modules
+import numpy as np
+import cv2
 
 ### project modules
-from .neurotecbase import *
+from bio_modals.neurotecbase import *
 
 
 class Fingerprint(NeurotecBase):
@@ -46,41 +48,70 @@ class Fingerprint(NeurotecBase):
         finger.Image = nimage
         subject.Fingers.Add(finger)
 
-        status = self.biometricClient.CreateTemplate(subject)
+        if self.biometricClient.CreateTemplate(subject) != self.SDK.Biometrics.NBiometricStatus.Ok:
+            return None, None
         quality = subject.GetTemplate().Fingers.Records.get_Item(0).Quality
-        if status != self.SDK.Biometrics.NBiometricStatus.Ok:
-            return status, None, quality
-        return status, subject, quality
+        return subject, quality
 
 
-import cv2
+def unit_test_match(obj):
+    print('######################### Unit Test 1 - grayscale image input #########################')
+    img1 = cv2.imread("../unit_test_data/Fingerprint/093/L3_03.BMP", cv2.IMREAD_GRAYSCALE)
+    img2 = cv2.imread("../unit_test_data/Fingerprint/093/L3_04.BMP", cv2.IMREAD_GRAYSCALE)
+    matching_score, quality1, quality2 = obj.match(img1, img2)
+    print(matching_score, quality1, quality2)
+    print('######################### Unit Test 2 - color image input #########################')
+    img1 = cv2.imread("../unit_test_data/Fingerprint/093/L3_03.BMP", cv2.IMREAD_COLOR)
+    img2 = cv2.imread("../unit_test_data/Fingerprint/093/L3_04.BMP", cv2.IMREAD_COLOR)
+    matching_score, quality1, quality2 = obj.match(img1, img2)
+    print(matching_score, quality1, quality2)
+    print('######################### Unit Test 3 - file path input #########################')
+    img1 = "../unit_test_data/Fingerprint/093/L3_03.BMP"
+    img2 = "../unit_test_data/Fingerprint/093/L3_04.BMP"
+    matching_score, quality1, quality2 = obj.match(img1, img2)
+    print(matching_score, quality1, quality2)
+    print('######################### Unit Test 4 - weired path input #########################')
+    img1 = r'C:\weired\path'
+    img2 = r'C:\weired\path2'
+    try:
+        matching_score, quality1, quality2 = obj.match(img1, img2)
+        print(matching_score, quality1, quality2)
+    except Exception as e:
+        print(str(e))
+    print()
+
+
+def unit_test_match_using_filelist(obj):
+    print('######################### Unit Test 1 - filelist1 #########################')
+    filelist1 = [
+        "../unit_test_data/Fingerprint/093/L3_03.BMP",
+        "../unit_test_data/Fingerprint/094/R3_01.BMP",
+        "../unit_test_data/Fingerprint/227/R2_04.BMP",
+    ]
+    results, qualities1, qualities2 = obj.match_using_filelist(filelist1)
+    print(results, qualities1, qualities2)
+
+    print('################### Unit Test 2 - filelist1 and filelist2 ###################')
+    filelist2 = [
+        "../unit_test_data/Fingerprint/093/L3_04.BMP",
+        "../unit_test_data/Fingerprint/094/R3_02.BMP",
+        "../unit_test_data/Fingerprint/227/R2_05.BMP",
+    ]
+    results, qualities1, qualities2 = obj.match_using_filelist(filelist1, filelist2)
+    print(results, qualities1, qualities2)
+
+    print('######################### Unit Test 3 - file error #########################')
+    filelist3 = [r"C:\weired\path", r"C:\weired\path2"]
+    try:
+        results, qualities1, qualities2 = obj.match_using_filelist(filelist3)
+        print(results, qualities1, qualities2)
+    except Exception as e:
+        print(str(e))
+    print()
+
 
 if __name__ == '__main__':
     obj = Fingerprint(r'C:\Neurotec_Biometric_12_4_SDK\Bin\Win64_x64')
-    # img1 = cv2.imread(r"D:\Dataset\IITD\IITD Database\001\01_L.bmp",cv2.IMREAD_GRAYSCALE)
-    # obj.extract_feature(img1)
 
-    ''' unit test of match() '''
-    # img1 = cv2.imread(r"D:\Dataset\IITD\IITD Database\001\01_L.bmp", cv2.IMREAD_GRAYSCALE)
-    # img2 = cv2.imread(r"D:\Dataset\IITD\IITD Database\001\10_L.bmp", cv2.IMREAD_GRAYSCALE)
-    # print(obj.match(img1, img2)) # case1: grayscale
-    # img1 = cv2.imread(r"D:\Dataset\IITD\IITD Database\001\01_L.bmp", cv2.IMREAD_COLOR)
-    # img2 = cv2.imread(r"D:\Dataset\IITD\IITD Database\001\10_L.bmp", cv2.IMREAD_COLOR)
-    # print(obj.match(img1, img2)) # case2: color
-    # img1 = r"D:\Dataset\IITD\IITD Database\001\01_L.bmp"
-    # img2 = r"D:\Dataset\IITD\IITD Database\001\10_L.bmp"
-    # print(obj.match(img1, img2)) # case3: path
-    # img1 = r'C:\weired\path'
-    # img2 = r'C:\weired\path2'
-    # try:
-    #     print(obj.match(img1, img2)) # case4: exception
-    # except Exception as e:
-    #     print(str(e))
-
-    ''' unit test of match_using_filelist() '''
-    # filelist1 = [r"D:\Dataset\IITD\IITD Database\001\01_L.bmp", r"D:\Dataset\IITD\IITD Database\001\02_L.bmp", r"D:\Dataset\IITD\IITD Database\002\01_L.bmp"]
-    # filelist2 = [r"D:\Dataset\IITD\IITD Database\002\02_L.bmp", r"D:\Dataset\IITD\IITD Database\004\01_L.bmp", r"D:\Dataset\IITD\IITD Database\001\10_L.bmp"]
-    # imposter_match = obj.match_using_filelist(filelist1)
-    # print(imposter_match)
-    # genuine_match = obj.match_using_filelist(filelist1, filelist2)
-    # print(genuine_match)
+    unit_test_match(obj)
+    unit_test_match_using_filelist(obj)

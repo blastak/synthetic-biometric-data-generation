@@ -23,5 +23,5 @@ class Base(ABC):
         pass
 
     @abstractmethod
-    def match_using_filelist(self, filelist1, filelist2):
+    def match_using_filelist(self, filelist1, filelist2=None):
         pass
