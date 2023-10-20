@@ -1,0 +1,3 @@
+[submodule "pyeer"]
+	path = pyeer
+	url = https://github.com/blastak/pyeer.git
