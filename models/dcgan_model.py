@@ -36,8 +36,8 @@ class DCGANModel(BaseGANModel):
         pred_real = self.net_D(self.real_image)
         loss_GAN_real = self.lossF_GAN(pred_real, torch.tensor(1.).expand_as(pred_real))
 
-        pred_fake = self.net_D(self.fake)
-        loss_GAN_fake = self.lossF_GAN(pred_fake.detach(), torch.tensor(0.).expand_as(pred_fake))
+        pred_fake = self.net_D(self.fake.detach())
+        loss_GAN_fake = self.lossF_GAN(pred_fake, torch.tensor(0.).expand_as(pred_fake))
 
         self.loss_D = (loss_GAN_real + loss_GAN_fake) * 0.5
         self.loss_D.backward()
