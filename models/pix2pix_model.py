@@ -1,10 +1,11 @@
-from models.base_model import *
-from networks import *
+from models.base_GAN_model import *
+from models.networks import *
 
 
-class Pix2pixModel(BaseModel):
+class Pix2pixModel(BaseGANModel):
     def __init__(self, in_channels: int, out_channels: int, gpu_ids=[]):
-        BaseModel.__init__(self)
+        super().__init__()
+        self.gpu_ids = gpu_ids
         self.net_G = create_init(GeneratorUnet(in_channels), gpu_ids)
         self.net_D = create_init(Discriminator(in_channels + out_channels, 'patch'), gpu_ids)
         self.optimizer_G = torch.optim.Adam(self.net_G.parameters(), lr=0.0002, betas=(0.5, 0.999))

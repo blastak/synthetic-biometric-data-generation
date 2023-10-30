@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 
 
-class ConvBatch(nn.Module):
+class C0nvBnLeaky(nn.Module):
     def __init__(self, in_channels, out_channels, activation='leaky_relu', conv_type='conv', filter_size=4, stride=2, padding=1):
-        super(ConvBatch, self).__init__()
+        super().__init__()
         if conv_type == 'conv':
             self.conv = nn.Conv2d(in_channels, out_channels, filter_size, stride, padding)
         else:
@@ -30,23 +30,23 @@ class GeneratorUnet(nn.Module):
         GeneratorUnet
         :param in_channels: condition image의 채널수(EnhancementGAN의 경우 1, IDPreserveGAN의 경우 2~3)
         """
+        super().__init__()
         inner_filters = 64
-        super(GeneratorUnet, self).__init__()
         nf = [inner_filters * 2 ** a for a in range(5)]
         self.encoder1 = nn.Sequential(
             nn.Conv2d(in_channels, nf[0], 4, 2, 1),
             nn.LeakyReLU(0.2)
         )
-        self.encoder2 = ConvBatch(nf[0], nf[1])
-        self.encoder3 = ConvBatch(nf[1], nf[2])
-        self.encoder4 = ConvBatch(nf[2], nf[3])
-        self.encoder5 = ConvBatch(nf[3], nf[3])  # 특이하게 512 -> 512
-        self.encoder6 = ConvBatch(nf[3], nf[4])
-        self.decoder6 = ConvBatch(nf[4], nf[3], 'relu', 'deconv')
-        self.decoder5 = ConvBatch(nf[3] * 2, nf[3], 'relu', 'deconv')
-        self.decoder4 = ConvBatch(nf[3] * 2, nf[2], 'relu', 'deconv')
-        self.decoder3 = ConvBatch(nf[2] * 2, nf[1], 'relu', 'deconv')
-        self.decoder2 = ConvBatch(nf[1] * 2, nf[0], 'relu', 'deconv')
+        self.encoder2 = C0nvBnLeaky(nf[0], nf[1])
+        self.encoder3 = C0nvBnLeaky(nf[1], nf[2])
+        self.encoder4 = C0nvBnLeaky(nf[2], nf[3])
+        self.encoder5 = C0nvBnLeaky(nf[3], nf[3])  # 특이하게 512 -> 512
+        self.encoder6 = C0nvBnLeaky(nf[3], nf[4])
+        self.decoder6 = C0nvBnLeaky(nf[4], nf[3], 'relu', 'deconv')
+        self.decoder5 = C0nvBnLeaky(nf[3] * 2, nf[3], 'relu', 'deconv')
+        self.decoder4 = C0nvBnLeaky(nf[3] * 2, nf[2], 'relu', 'deconv')
+        self.decoder3 = C0nvBnLeaky(nf[2] * 2, nf[1], 'relu', 'deconv')
+        self.decoder2 = C0nvBnLeaky(nf[1] * 2, nf[0], 'relu', 'deconv')
         self.decoder1 = nn.Sequential(
             nn.ConvTranspose2d(nf[0] * 2, 1, 4, 2, 1),
             nn.Tanh()
@@ -75,27 +75,28 @@ class Discriminator(nn.Module):
         :param in_channels: A,B가 concat된 총 채널수(EnhancementGAN의 경우 2, IDPreserveGAN의 경우 3~4, ThumbnailGAN은 1)
         :param mode: pix2pix용으로 쓸건지[default]. dcgan용으로 쓸건지
         """
+        super().__init__()
         inner_filters = 64 if mode == 'patch' else 128
-        super(Discriminator, self).__init__()
         nf = [inner_filters * 2 ** a for a in range(4)]
         self.layer1 = nn.Sequential(
             nn.Conv2d(in_channels, nf[0], 4, 2, 1),
             nn.LeakyReLU(0.2)
         )
-        self.layer2 = ConvBatch(nf[0], nf[1])
-        self.layer3 = ConvBatch(nf[1], nf[2])
+        self.layer2 = C0nvBnLeaky(nf[0], nf[1])
+        self.layer3 = C0nvBnLeaky(nf[1], nf[2])
         if mode == 'patch':
-            self.layer4 = ConvBatch(nf[2], nf[3], stride=1)  # stride=1
+            self.layer4 = C0nvBnLeaky(nf[2], nf[3], stride=1)  # stride=1
             self.layer5 = nn.Sequential(
                 nn.Conv2d(nf[3], 1, 4, 1, 1),  # stride=1
                 nn.Sigmoid()
             )
         else:
             image_width = 64
-            self.layer4 = ConvBatch(nf[2], nf[3])
+            tensor_width = image_width // (2 ** 4) # 64->32->16->8->4
+            self.layer4 = C0nvBnLeaky(nf[2], nf[3])
             self.layer5 = nn.Sequential(
                 nn.Flatten(),
-                nn.Linear(nf[3] * image_width ** 2, 1),
+                nn.Linear(nf[3] * tensor_width ** 2, 1),
                 nn.Sigmoid()
             )  # dense
 
@@ -115,7 +116,7 @@ class GeneratorDC(nn.Module):
         :param in_dims: 512-dim random vector
         :param out_channels: output image channels
         """
-        super(GeneratorDC, self).__init__()
+        super().__init__()
         inner_filters = 128
         nf = [inner_filters * 2 ** a for a in range(4)]
         self.layer1 = nn.Sequential(
@@ -124,9 +125,9 @@ class GeneratorDC(nn.Module):
             nn.ReLU()
         )  # dense
         self.unflatten = nn.Unflatten(1, (nf[3], 4, 4))
-        self.layer2 = ConvBatch(nf[3], nf[2], 'relu', 'deconv')
-        self.layer3 = ConvBatch(nf[2], nf[1], 'relu', 'deconv')
-        self.layer4 = ConvBatch(nf[1], nf[0], 'relu', 'deconv')
+        self.layer2 = C0nvBnLeaky(nf[3], nf[2], 'relu', 'deconv')
+        self.layer3 = C0nvBnLeaky(nf[2], nf[1], 'relu', 'deconv')
+        self.layer4 = C0nvBnLeaky(nf[1], nf[0], 'relu', 'deconv')
         self.layer5 = nn.Sequential(
             nn.ConvTranspose2d(nf[0], out_channels, 4, 2, 1, bias=False),
             nn.Tanh() # Binh의 논문과 다르게 BN은 넣지 않았음 (DCGAN에서는 안넣는듯해서)
@@ -145,10 +146,10 @@ class GeneratorDC(nn.Module):
 def weights_init_normal(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1 or classname.find('Linear') != -1:
-        nn.init.normal_(m.weight.latent_vector, 0.0, 0.02)
-    elif classname.find('BatchNorm2d') != -1 or classname.find('BatchNorm1d') != -1:
-        nn.init.normal_(m.weight.latent_vector, 1.0, 0.02)
-        nn.init.constant_(m.bias.latent_vector, 0.0)
+        nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        nn.init.normal_(m.weight.data, 1.0, 0.02)
+        nn.init.constant_(m.bias.data, 0.0)
 
 
 def create_init(net, gpu_ids=[]):
