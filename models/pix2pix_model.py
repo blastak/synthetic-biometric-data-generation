@@ -6,8 +6,8 @@ class Pix2pixModel(BaseGANModel):
     def __init__(self, in_channels: int, out_channels: int, gpu_ids=[]):
         super().__init__()
         self.gpu_ids = gpu_ids
-        self.net_G = create_init(GeneratorUnet(in_channels), gpu_ids)
-        self.net_D = create_init(Discriminator(in_channels + out_channels, 'patch'), gpu_ids)
+        self.net_G = create_and_init(GeneratorUnet(in_channels), gpu_ids)
+        self.net_D = create_and_init(Discriminator(in_channels + out_channels, 'patch'), gpu_ids)
         self.optimizer_G = torch.optim.Adam(self.net_G.parameters(), lr=0.0002, betas=(0.5, 0.999))
         self.optimizer_D = torch.optim.Adam(self.net_D.parameters(), lr=0.0002, betas=(0.5, 0.999))
         self.lossF_GAN = nn.BCEWithLogitsLoss()

@@ -6,9 +6,9 @@ class C0nvBnLeaky(nn.Module):
     def __init__(self, in_channels, out_channels, activation='leaky_relu', conv_type='conv', filter_size=4, stride=2, padding=1):
         super().__init__()
         if conv_type == 'conv':
-            self.conv = nn.Conv2d(in_channels, out_channels, filter_size, stride, padding)
+            self.conv = nn.Conv2d(in_channels, out_channels, filter_size, stride, padding, bias=False)
         else:
-            self.conv = nn.ConvTranspose2d(in_channels, out_channels, filter_size, stride, padding)
+            self.conv = nn.ConvTranspose2d(in_channels, out_channels, filter_size, stride, padding, bias=False)
 
         self.bn = nn.BatchNorm2d(out_channels)
 
@@ -34,7 +34,7 @@ class GeneratorUnet(nn.Module):
         inner_filters = 64
         nf = [inner_filters * 2 ** a for a in range(5)]
         self.encoder1 = nn.Sequential(
-            nn.Conv2d(in_channels, nf[0], 4, 2, 1),
+            nn.Conv2d(in_channels, nf[0], 4, 2, 1, bias=False),
             nn.LeakyReLU(0.2)
         )
         self.encoder2 = C0nvBnLeaky(nf[0], nf[1])
@@ -48,7 +48,7 @@ class GeneratorUnet(nn.Module):
         self.decoder3 = C0nvBnLeaky(nf[2] * 2, nf[1], 'relu', 'deconv')
         self.decoder2 = C0nvBnLeaky(nf[1] * 2, nf[0], 'relu', 'deconv')
         self.decoder1 = nn.Sequential(
-            nn.ConvTranspose2d(nf[0] * 2, 1, 4, 2, 1),
+            nn.ConvTranspose2d(nf[0] * 2, 1, 4, 2, 1, bias=False),
             nn.Tanh()
         )
 
@@ -79,7 +79,7 @@ class Discriminator(nn.Module):
         inner_filters = 64 if mode == 'patch' else 128
         nf = [inner_filters * 2 ** a for a in range(4)]
         self.layer1 = nn.Sequential(
-            nn.Conv2d(in_channels, nf[0], 4, 2, 1),
+            nn.Conv2d(in_channels, nf[0], 4, 2, 1, bias=False),
             nn.LeakyReLU(0.2)
         )
         self.layer2 = C0nvBnLeaky(nf[0], nf[1])
@@ -87,7 +87,7 @@ class Discriminator(nn.Module):
         if mode == 'patch':
             self.layer4 = C0nvBnLeaky(nf[2], nf[3], stride=1)  # stride=1
             self.layer5 = nn.Sequential(
-                nn.Conv2d(nf[3], 1, 4, 1, 1),  # stride=1
+                nn.Conv2d(nf[3], 1, 4, 1, 1, bias=False),  # stride=1
                 nn.Sigmoid()
             )
         else:
@@ -96,7 +96,7 @@ class Discriminator(nn.Module):
             self.layer4 = C0nvBnLeaky(nf[2], nf[3])
             self.layer5 = nn.Sequential(
                 nn.Flatten(),
-                nn.Linear(nf[3] * tensor_width ** 2, 1),
+                nn.Linear(nf[3] * tensor_width ** 2, 1, bias=False),
                 nn.Sigmoid()
             )  # dense
 
@@ -120,7 +120,7 @@ class GeneratorDC(nn.Module):
         inner_filters = 128
         nf = [inner_filters * 2 ** a for a in range(4)]
         self.layer1 = nn.Sequential(
-            nn.Linear(in_dims, nf[3] * 4 * 4),
+            nn.Linear(in_dims, nf[3] * 4 * 4, bias=False),
             nn.BatchNorm1d(nf[3] * 4 * 4),
             nn.ReLU()
         )  # dense
@@ -143,17 +143,19 @@ class GeneratorDC(nn.Module):
         return x
 
 
-def weights_init_normal(m):
+def weights_init(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1 or classname.find('Linear') != -1:
-        nn.init.normal_(m.weight.data, 0.0, 0.02)
+        # nn.init.normal_(m.weight.data, 0.0, 0.02)
+        nn.init.xavier_normal_(m.weight.data, gain=0.02)
     elif classname.find('BatchNorm') != -1:
-        nn.init.normal_(m.weight.data, 1.0, 0.02)
+        # nn.init.normal_(m.weight.data, 1.0, 0.02)
+        nn.init.xavier_normal_(m.weight.data, gain=0.02)
         nn.init.constant_(m.bias.data, 0.0)
 
 
-def create_init(net, gpu_ids=[]):
+def create_and_init(net, gpu_ids=[]):
     if len(gpu_ids) > 1:
         net = nn.DataParallel(net, gpu_ids)
-    net.apply(weights_init_normal)
+    net.apply(weights_init)
     return net
