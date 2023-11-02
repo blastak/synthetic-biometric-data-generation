@@ -1,8 +1,9 @@
-import os
-
+from pathlib import Path
 import torch
 import torchvision.transforms as transforms
 from PIL import Image
+
+from bio_modals.iris import Iris
 
 IMG_EXTENSIONS = [
     '.jpg', '.JPG', '.jpeg', '.JPEG',
@@ -10,12 +11,21 @@ IMG_EXTENSIONS = [
     '.tif', '.TIF', '.tiff', '.TIFF',
 ]
 
+# def filter_path(path_list, modality, DB_name):
+#     if modality == 'iris' and DB_name == 'IITD':
+#         i = 0
+#         while i < len(path_list):
+#             if 'Normalized_Images' in path_list[i].as_posix():
+#                 path_list.pop(i)
+#             else:
+#                 i += 1
+#     return path_list
+
 
 class ThumbnailDataset(torch.utils.data.Dataset):
     def __init__(self, image_folder_path):
-        self.image_folder_path = image_folder_path
-
-        self.real_images = [f for f in os.listdir(image_folder_path) if any(f.endswith(ext) for ext in IMG_EXTENSIONS)]
+        self.image_path_list = list(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix in IMG_EXTENSIONS)
+        # self.image_path_list = filter_path(self.image_path_list, modality, 'IITD')
 
         image_width = 64
         self.tf = transforms.Compose([
@@ -27,16 +37,12 @@ class ThumbnailDataset(torch.utils.data.Dataset):
         ])
 
     def __len__(self):
-        return len(self.real_images)
+        return len(self.image_path_list)
 
     def __getitem__(self, index):
-        img_path = os.path.join(self.image_folder_path, self.real_images[index])
-        img = Image.open(img_path).convert('RGB')
+        img = Image.open(self.image_path_list[index]).convert('RGB')
         tensor = self.tf(img)
         noise = torch.randn(512)
         sample = {'latent_vector': noise, 'real_image': tensor}
-
         return sample
 
-    def __get_transform(self, augmentation):
-        pass
