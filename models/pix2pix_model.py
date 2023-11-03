@@ -6,6 +6,7 @@ class Pix2pixModel(BaseGANModel):
     def __init__(self, in_channels: int, out_channels: int, gpu_ids=[]):
         super().__init__()
         self.gpu_ids = gpu_ids
+        self.device = torch.device('cuda:{}'.format(self.gpu_ids[0])) if self.gpu_ids else torch.device('cpu')
         self.net_G = create_and_init(GeneratorUnet(in_channels), gpu_ids)
         self.net_D = create_and_init(Discriminator(in_channels + out_channels, 'patch'), gpu_ids)
         self.optimizer_G = torch.optim.Adam(self.net_G.parameters(), lr=0.0002, betas=(0.5, 0.999))
@@ -15,8 +16,10 @@ class Pix2pixModel(BaseGANModel):
         self.lambda_L1 = 100
 
     def input_data(self, data):
-        self.condi_image = data['condition_image']
-        self.real_image = data['real_image']
+        self.condi_image = data['condition_image'].to(self.device)
+        self.real_image = data['real_image'].to(self.device)
+        if self.fixed_data is None:
+            self.fixed_data = self.condi_image.clone()
 
     def forward(self):
         self.fake_image = self.net_G(self.condi_image)

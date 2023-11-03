@@ -12,11 +12,13 @@ class DCGANModel(BaseGANModel):
         self.optimizer_G = torch.optim.Adam(self.net_G.parameters(), lr=0.0002, betas=(0.5, 0.999))
         self.optimizer_D = torch.optim.Adam(self.net_D.parameters(), lr=0.0002, betas=(0.5, 0.999))
         self.lossF_GAN = nn.BCELoss()
-        self.fixed = torch.randn(8**2, 512, device=self.device)
 
     def input_data(self, data):
         self.latent_vector = data['latent_vector'].to(self.device)
         self.real_image = data['real_image'].to(self.device)
+        if self.fixed_data is None:
+            self.fixed_data = self.latent_vector.clone()
+
 
     def forward(self):
         self.fake = self.net_G(self.latent_vector)

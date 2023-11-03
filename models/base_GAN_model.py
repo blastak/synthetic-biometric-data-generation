@@ -7,6 +7,7 @@ class BaseGANModel(ABC):
     def __init__(self):
         super().__init__()
         self.gpu_ids = []
+        self.fixed_data = None
 
     @abstractmethod
     def input_data(self, data):
@@ -62,6 +63,9 @@ class BaseGANModel(ABC):
             }, ckpt_path)
 
     def save_generated_image(self, image_path):
+        if self.fixed_data is None:
+            raise NotImplementedError
+
         with torch.no_grad():
-            img = self.__dict__['net_G'](self.__dict__['fixed']).detach().cpu()
-        save_image(img, image_path, nrow=int(self.__dict__['fixed'].shape[0] ** 0.5), normalize=True)
+            img = self.__dict__['net_G'](self.fixed_data).detach().cpu()
+        save_image(img, image_path, nrow=int(self.fixed_data.shape[0] ** 0.5), normalize=True)
