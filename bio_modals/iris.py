@@ -73,20 +73,26 @@ def gabor_convolve(im, nscale, minWaveLength, mult, sigmaOnf):
 
 
 class Iris(NeurotecBase):
-    def __init__(self, license_path=''):
-        NeurotecBase.__init__(self, license_path)
+    def __init__(self, library_path=''):
+        NeurotecBase.__init__(self, library_path)
         self.check_license('Biometrics.IrisExtraction,Biometrics.IrisMatching')
 
-    def extract_feature(self, image):
+    def extract_feature(self, img_or_subject):
         center = [0, 0]
         in_radius = 0
         out_radius = 0
         iris_code = np.empty([])
 
-        # iris, pupil detection
-        subject, quality = self.create_subject(image)
-        if subject is None:
-            return False, quality, iris_code, center, in_radius, out_radius
+        if type(img_or_subject) == self.SDK.Biometrics.NSubject:  ## subject 로 입력되었을 경우
+            subject = img_or_subject
+            quality = subject.GetTemplate().Irises.Records.get_Item(0).Quality
+        else:
+            subject, quality = self.create_subject(img_or_subject)  ## iris, pupil detection
+            if subject is None:
+                return subject, quality, iris_code, center, out_radius
+        nimage = subject.Irises.get_Item(0).Image
+        image = np.frombuffer(self.SDK.IO.NBuffer.ToArray(nimage.GetPixels()), dtype=np.uint8)
+        image = image.reshape((nimage.Height, nimage.Width))
 
         inners = [[] for _ in range(32)]
         outers = [[] for _ in range(32)]
@@ -106,7 +112,7 @@ class Iris(NeurotecBase):
         out_radius = ro
 
         # C2P warping
-        img_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        img_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) > 2 else image.copy()
         polar_a = cv2.warpPolar(img_gray, (40 + 4, 240), (xi, yi), ro + 4, cv2.WARP_POLAR_LINEAR + cv2.INTER_LINEAR + cv2.WARP_FILL_OUTLIERS)
         polar_b = cv2.rotate(polar_a, cv2.ROTATE_90_CLOCKWISE)
 
@@ -130,62 +136,44 @@ class Iris(NeurotecBase):
         ip = (E0[0].imag > 0).astype(np.uint8) * 255
         iris_code = np.stack([rp, ip, ip], axis=2)
 
-        return True, quality, iris_code, center, in_radius, out_radius
+        zero_pupil_iris_code = np.zeros((*polar_b.shape, 3), dtype=np.uint8)
+        zero_pupil_iris_code[idx:, ...] = iris_code.copy()
 
-    def make_condition_image(self, feature_vector, position_angle_change: Optional[list] = None):
-        pass
+        return subject, quality, zero_pupil_iris_code, center, out_radius
+
+    def make_condition_image(self, feature_vector, position_angle_change: Optional[dict] = None):
+        image_shape = position_angle_change['shape']
+        xi,yi = position_angle_change['center']
+        ro = position_angle_change['out_radius']
+        polar_a_color = cv2.rotate(feature_vector, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        img_recon = cv2.warpPolar(polar_a_color, image_shape[::-1], (xi, yi), ro + 4, cv2.WARP_POLAR_LINEAR + cv2.INTER_LINEAR + cv2.WARP_FILL_OUTLIERS + cv2.WARP_INVERSE_MAP)
+        return img_recon
 
     def make_pair_image(self, image):
         pass
-
-    def create_subject(self, img_or_file):
-        subject = self.SDK.Biometrics.NSubject()
-        iris = self.SDK.Biometrics.NIris()
-        try:
-            if type(img_or_file) == str:
-                nimage = self.SDK.Images.NImage.FromFile(img_or_file)
-            elif type(img_or_file) == np.ndarray:
-                ww, hh = img_or_file.shape[1::-1]
-                cc = 1
-                if len(img_or_file.shape) == 3:
-                    cc = img_or_file.shape[2]
-                pixelformat = self.SDK.Images.NPixelFormat.Rgb8U if cc == 3 else self.SDK.Images.NPixelFormat.Grayscale8U
-                nimage = self.SDK.Images.NImage.FromData(pixelformat, ww, hh, 0, ww * cc, self.SDK.IO.NBuffer.FromArray(img_or_file.tobytes()))
-            else:
-                raise Exception
-        except:
-            raise TypeError('type is not supported')
-
-        iris.Image = nimage
-        subject.Irises.Add(iris)
-
-        if self.biometricClient.CreateTemplate(subject) != self.SDK.Biometrics.NBiometricStatus.Ok:
-            return None, None
-        quality = subject.GetTemplate().Irises.Records.get_Item(0).Quality
-        return subject, quality
 
 
 def unit_test_match(obj):
     print('######################### Unit Test 1 - grayscale image input #########################')
     img1 = cv2.imread("../unit_test_data/Iris/072/07_R.bmp", cv2.IMREAD_GRAYSCALE)
     img2 = cv2.imread("../unit_test_data/Iris/072/08_R.bmp", cv2.IMREAD_GRAYSCALE)
-    matching_score, quality1, quality2 = obj.match(img1, img2)
+    matching_score, quality1, quality2 = obj.match_using_images(img1, img2)
     print(matching_score, quality1, quality2)
     print('######################### Unit Test 2 - color image input #########################')
     img1 = cv2.imread("../unit_test_data/Iris/072/07_R.bmp", cv2.IMREAD_COLOR)
     img2 = cv2.imread("../unit_test_data/Iris/072/08_R.bmp", cv2.IMREAD_COLOR)
-    matching_score, quality1, quality2 = obj.match(img1, img2)
+    matching_score, quality1, quality2 = obj.match_using_images(img1, img2)
     print(matching_score, quality1, quality2)
     print('######################### Unit Test 3 - file path input #########################')
     img1 = "../unit_test_data/Iris/072/07_R.bmp"
     img2 = "../unit_test_data/Iris/072/08_R.bmp"
-    matching_score, quality1, quality2 = obj.match(img1, img2)
+    matching_score, quality1, quality2 = obj.match_using_images(img1, img2)
     print(matching_score, quality1, quality2)
     print('######################### Unit Test 4 - weired path input #########################')
     img1 = r'C:\weired\path'
     img2 = r'C:\weired\path2'
     try:
-        matching_score, quality1, quality2 = obj.match(img1, img2)
+        matching_score, quality1, quality2 = obj.match_using_images(img1, img2)
         print(matching_score, quality1, quality2)
     except Exception as e:
         print(str(e))

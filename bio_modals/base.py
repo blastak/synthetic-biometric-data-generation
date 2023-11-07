@@ -11,7 +11,7 @@ class Base(ABC):
         pass
 
     @abstractmethod
-    def make_condition_image(self, feature_vector, position_angle_change: Optional[list] = None):
+    def make_condition_image(self, feature_vector, position_angle_change: Optional[dict] = None):
         pass
 
     @abstractmethod
@@ -19,7 +19,7 @@ class Base(ABC):
         pass
 
     @abstractmethod
-    def match(self, image1, image2):
+    def match_using_images(self, image1, image2):
         pass
 
     @abstractmethod
