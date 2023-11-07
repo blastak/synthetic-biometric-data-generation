@@ -1,19 +1,15 @@
 import argparse
-import cv2
-from PIL import Image
-import numpy as np
-import torch
-from torchvision.utils import make_grid
-import torchvision.transforms as transforms
 
-from models.R_Thumbnail import ThumbnailGAN
-from models.R_Enhancement import EnhancementGAN
-from models.D_IDPreserve import IDPreserveGAN
-from datasets import *
+import cv2
+from torchvision.utils import make_grid
 
 from bio_modals.iris import Iris
+from datasets import *
+from models.D_IDPreserve import IDPreserveGAN
+from models.R_Enhancement import EnhancementGAN
+from models.R_Thumbnail import ThumbnailGAN
 
-if __name__=='__main__':
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--ckpt_path_thumbnail', type=str, required=True)
     parser.add_argument('--ckpt_path_enhancement', type=str, required=True)
@@ -31,7 +27,7 @@ if __name__=='__main__':
     device = torch.device('cuda:{}'.format(gpu_ids[0]) if (torch.cuda.is_available() and len(gpu_ids) > 0) else 'cpu')
     torch.set_default_device(device)
 
-    ckpt_thumbnail = torch.load(args.ckpt_path_thumbnail,map_location=device)
+    ckpt_thumbnail = torch.load(args.ckpt_path_thumbnail, map_location=device)
     Gen_thumbnail = ThumbnailGAN(512, 1, gpu_ids)
     Gen_thumbnail.net_G.load_state_dict(ckpt_thumbnail['modelG_state_dict'])
     Gen_thumbnail.net_G.to(device)
@@ -109,7 +105,7 @@ if __name__=='__main__':
             break
 
         is_exist = False
-        for i,s in enumerate(subjects_kept):
+        for i, s in enumerate(subjects_kept):
             matched, matching_score = obj.match_using_subjects(subj1, s)
             print(i, matched, matching_score)
             if matched is None or matched:
@@ -117,4 +113,3 @@ if __name__=='__main__':
                 break
         if not is_exist:
             subjects_kept.append(subj1)
-

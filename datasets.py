@@ -1,16 +1,16 @@
 from pathlib import Path
+
+import numpy as np
 import torch
 import torchvision.transforms as transforms
 from PIL import Image
-import numpy as np
-
-from bio_modals.iris import Iris
 
 IMG_EXTENSIONS = [
     '.jpg', '.JPG', '.jpeg', '.JPEG',
     '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP',
     '.tif', '.TIF', '.tiff', '.TIFF',
 ]
+
 
 def filter_path(path_list, modality, DB_name):
     if modality == 'iris' and DB_name == 'IITD':
