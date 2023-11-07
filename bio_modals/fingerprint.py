@@ -27,26 +27,26 @@ def unit_test_match(obj):
     print('######################### Unit Test 1 - grayscale image input #########################')
     img1 = cv2.imread("../unit_test_data/Fingerprint/093/L3_03.BMP", cv2.IMREAD_GRAYSCALE)
     img2 = cv2.imread("../unit_test_data/Fingerprint/093/L3_04.BMP", cv2.IMREAD_GRAYSCALE)
-    matching_score, quality1, quality2 = obj.match_using_images(img1, img2)
-    print(matching_score, quality1, quality2)
+    matched, matching_score, quality1, quality2 = obj.match_using_images(img1, img2)
+    print(matched, matching_score, quality1, quality2)
     print('######################### Unit Test 2 - color image input #########################')
     img1 = cv2.imread("../unit_test_data/Fingerprint/093/L3_03.BMP", cv2.IMREAD_COLOR)
     img2 = cv2.imread("../unit_test_data/Fingerprint/093/L3_04.BMP", cv2.IMREAD_COLOR)
-    matching_score, quality1, quality2 = obj.match_using_images(img1, img2)
-    print(matching_score, quality1, quality2)
+    matched, matching_score, quality1, quality2 = obj.match_using_images(img1, img2)
+    print(matched, matching_score, quality1, quality2)
     print('######################### Unit Test 3 - file path input #########################')
     img1 = "../unit_test_data/Fingerprint/093/L3_03.BMP"
     img2 = "../unit_test_data/Fingerprint/093/L3_04.BMP"
-    matching_score, quality1, quality2 = obj.match_using_images(img1, img2)
-    print(matching_score, quality1, quality2)
+    matched, matching_score, quality1, quality2 = obj.match_using_images(img1, img2)
+    print(matched, matching_score, quality1, quality2)
     print('######################### Unit Test 4 - weired path input #########################')
     img1 = r'C:\weired\path'
     img2 = r'C:\weired\path2'
     try:
-        matching_score, quality1, quality2 = obj.match_using_images(img1, img2)
-        print(matching_score, quality1, quality2)
+        matched, matching_score, quality1, quality2 = obj.match_using_images(img1, img2)
+        print(matched, matching_score, quality1, quality2)
     except Exception as e:
-        print(str(e))
+        print(type(e))
     print()
 
 
@@ -75,7 +75,7 @@ def unit_test_match_using_filelist(obj):
         results, qualities1, qualities2 = obj.match_using_filelist(filelist3)
         print(results, qualities1, qualities2)
     except Exception as e:
-        print(str(e))
+        print(type(e))
     print()
 
 
