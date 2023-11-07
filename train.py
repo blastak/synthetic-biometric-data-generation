@@ -67,7 +67,10 @@ if __name__ == '__main__':
     print(model)
 
     ########## make saving folder
-    experiment_dir = os.path.join('checkpoints', args.exp_name)
+    exp_name = args.exp_name
+    if exp_name == 'experiment_name':
+        exp_name = '_'.join([args.modality, args.net_name])
+    experiment_dir = os.path.join('checkpoints', exp_name)
     cnt = 1
     while True:
         try:
