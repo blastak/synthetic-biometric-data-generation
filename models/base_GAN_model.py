@@ -69,3 +69,16 @@ class BaseGANModel(ABC):
         with torch.no_grad():
             img = self.__dict__['net_G'](self.fixed_data).detach().cpu()
         save_image(img, image_path, nrow=int(self.fixed_data.shape[0] ** 0.5), normalize=True)
+
+    def load_checkpoints(self, ckpt_path):
+        state_dict = torch.load(ckpt_path, map_location=str(self.device))
+        if isinstance(self.__dict__['net_G'], torch.nn.DataParallel):
+            self.__dict__['net_D'].module.load_state_dict(state_dict['modelD_state_dict'])
+            self.__dict__['net_G'].module.load_state_dict(state_dict['modelG_state_dict'])
+            # self.__dict__['optimizer_D'].module.load_state_dict(state_dict['optimizerD_state_dict'])
+            # self.__dict__['optimizer_G'].module.load_state_dict(state_dict['optimizerG_state_dict'])
+        else:
+            self.__dict__['net_D'].load_state_dict(state_dict['modelD_state_dict'])
+            self.__dict__['net_G'].load_state_dict(state_dict['modelG_state_dict'])
+            # self.__dict__['optimizer_D'].load_state_dict(state_dict['optimizerD_state_dict'])
+            # self.__dict__['optimizer_G'].load_state_dict(state_dict['optimizerG_state_dict'])
