@@ -13,9 +13,9 @@ class C0nvBnLeaky(nn.Module):
         self.bn = nn.BatchNorm2d(out_channels)
 
         if activation == 'leaky_relu':
-            self.act = nn.LeakyReLU(0.2)
+            self.act = nn.LeakyReLU(0.2, inplace=True)
         else:
-            self.act = nn.ReLU()
+            self.act = nn.ReLU(inplace=True)
 
     def forward(self, x):
         x = self.conv(x)
@@ -35,7 +35,7 @@ class GeneratorUnet(nn.Module):
         nf = [inner_filters * 2 ** a for a in range(5)]
         self.encoder1 = nn.Sequential(
             nn.Conv2d(in_channels, nf[0], 4, 2, 1, bias=False),
-            nn.LeakyReLU(0.2)
+            nn.LeakyReLU(0.2, inplace=True)
         )
         self.encoder2 = C0nvBnLeaky(nf[0], nf[1])
         self.encoder3 = C0nvBnLeaky(nf[1], nf[2])
@@ -80,7 +80,7 @@ class Discriminator(nn.Module):
         nf = [inner_filters * 2 ** a for a in range(4)]
         self.layer1 = nn.Sequential(
             nn.Conv2d(in_channels, nf[0], 4, 2, 1, bias=False),
-            nn.LeakyReLU(0.2)
+            nn.LeakyReLU(0.2, inplace=True)
         )
         self.layer2 = C0nvBnLeaky(nf[0], nf[1])
         self.layer3 = C0nvBnLeaky(nf[1], nf[2])
@@ -122,7 +122,7 @@ class GeneratorDC(nn.Module):
         self.layer1 = nn.Sequential(
             nn.Linear(in_dims, nf[3] * 4 * 4, bias=False),
             nn.BatchNorm1d(nf[3] * 4 * 4),
-            nn.ReLU()
+            nn.ReLU(inplace=True)
         )  # dense
         self.unflatten = nn.Unflatten(1, (nf[3], 4, 4))
         self.layer2 = C0nvBnLeaky(nf[3], nf[2], 'relu', 'deconv')
