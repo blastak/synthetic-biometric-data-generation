@@ -1,29 +1,12 @@
 import argparse
-import importlib
-import os
+import time
 import random
 
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from datasets import *
-
-
-def create_model(model_file_name, in_channels, out_channels, gpu_ids):
-    lib = importlib.import_module('models.%s' % model_file_name)
-    cls_name = model_file_name[2:] + 'GAN'
-    if cls_name in lib.__dict__:
-        model = lib.__dict__[cls_name]
-        return model(in_channels, out_channels, gpu_ids)
-
-
-def create_dataset(model_file_name, image_folder_path):
-    lib = importlib.import_module('datasets')
-    cls_name = model_file_name[2:] + 'Dataset'
-    if cls_name in lib.__dict__:
-        model = lib.__dict__[cls_name]
-        return model(image_folder_path)
-
+from utils import *
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -78,6 +61,12 @@ if __name__ == '__main__':
             break
         except:
             cnt += 1
+    args.exp_name = exp_name
+    args.experiment_dir = experiment_dir
+    save_log(experiment_dir, time.strftime('%Y%m%d_%H%M%S'))
+    save_log(experiment_dir, cvt_args2str(vars(args)))
+
+    save_log(experiment_dir, '\n' + str(model) + '\n\n')
 
     ########## training process
     for epoch in range(1, args.epochs + 1):
@@ -88,13 +77,14 @@ if __name__ == '__main__':
 
                 tq.set_description(f'Epoch {epoch}/{args.epochs}')
                 tq.set_postfix(model.get_current_loss())
+            save_log(experiment_dir, str(tq))
 
         if epoch % args.save_epochs == 0:
             ckpt_path = os.path.join(experiment_dir, 'ckpt_epoch%06d.pth' % epoch)
             model.save_checkpoints(ckpt_path)
-            image_path = os.path.join(experiment_dir, 'image_epoch%06d.png' % epoch)
+            image_path = os.path.join(experiment_dir, 'image_epoch%06d.jpg' % epoch)
             model.save_generated_image(image_path)
 
     print('Finished training the model')
     print('checkpoints are saved in "%s"' % experiment_dir)
-
+    save_log(experiment_dir, time.strftime('%Y%m%d_%H%M%S'))
