@@ -18,8 +18,8 @@ def create_dataset(model_file_name, image_folder_path):
         return model(image_folder_path)
 
 
-def save_log(ckpt_path, s: str):
-    with open(os.path.join(ckpt_path, 'log.txt'), 'a', encoding='utf-8') as f:
+def save_log(_path, s: str):
+    with open(os.path.join(_path, 'log.txt'), 'a', encoding='utf-8') as f:
         if not s.endswith('\n'):
             s += '\n'
         f.write(s)

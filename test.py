@@ -9,7 +9,6 @@ if __name__ == '__main__':
     parser.add_argument('--net_name', type=str, required=True, choices=['R_Thumbnail', 'R_Enhancement', 'D_IDPreserve'], help='Network name which will be trained')
     parser.add_argument('--data_dir', type=str, required=True, help='Absolute or relative path of input data directory for training')
     parser.add_argument('--ckpt_path', type=str, required=True)
-    parser.add_argument('--exp_name', type=str, default='experiment_name', help='Output model name')
     parser.add_argument('--batch_size', type=int, default=64, help='Mini-batch size (default = xx)')
     parser.add_argument('--gpu_ids', type=str, default='0', help='List IDs of GPU available. ex) --gpu_ids=0,1,2,3 , Use -1 for CPU mode')
     parser.add_argument('--workers', type=int, default=1, help='Number of worker threads for data loading')
@@ -42,18 +41,19 @@ if __name__ == '__main__':
     model.load_checkpoints(args.ckpt_path)
 
     ########## make saving folder
-    exp_name = args.exp_name
-    if exp_name == 'experiment_name':
-        exp_name = '_'.join([args.modality, args.net_name])
-    experiment_dir = os.path.join('results', exp_name)
+    d,f = os.path.split(args.ckpt_path)
+    save_dir = os.path.join(d, f.split('.')[0])
     cnt = 1
     while True:
         try:
-            os.makedirs(experiment_dir + '_tr%03d' % cnt)
-            experiment_dir += '_tr%03d' % cnt
+            os.makedirs(save_dir + '_test%03d' % cnt)
+            save_dir += '_test%03d' % cnt
             break
         except:
             cnt += 1
+    args.save_dir = save_dir
+    save_log(save_dir, datetime.now(KST).strftime('%Y%m%d_%H%M%S%z'))
+    save_log(save_dir, cvt_args2str(vars(args)))
 
     for i, inputs in enumerate(test_loader):
         model.input_data(inputs)
@@ -61,6 +61,9 @@ if __name__ == '__main__':
         detached = model.fake_image.detach().cpu()
         montage = make_grid(detached, nrow=int(args.batch_size ** 0.5), normalize=True).permute(1, 2, 0).numpy()
         montage = cv2.normalize(montage, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F).astype(np.uint8)
-        cv2.imwrite(os.path.join(experiment_dir, 'generated_image_%03d.jpg' % i), montage)
-        # cv2.imshow('montage', montage)
-        # cv2.waitKey(0)
+        save_image_path = os.path.join(save_dir, 'generated_image_%03d.jpg' % (i + 1))
+        cv2.imwrite(save_image_path, montage)
+        print(save_image_path + ' saved!')
+        save_log(save_dir, save_image_path + ' saved!')
+
+    save_log(save_dir, datetime.now(KST).strftime('%Y%m%d_%H%M%S%z'))
