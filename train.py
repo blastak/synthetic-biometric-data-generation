@@ -15,7 +15,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', type=str, required=True, help='Absolute or relative path of input data directory for training')
     parser.add_argument('--exp_name', type=str, default='experiment_name', help='Output model name')
     parser.add_argument('--epochs', type=int, default=200, help='Number of epochs (default = xxx)')
-    parser.add_argument('--save_epochs', type=int, default=10, help='Freqnecy for saving checkpoints (in epochs) ')
+    parser.add_argument('--save_epochs', type=int, default=10, help='Frequency for saving checkpoints (in epochs) ')
     parser.add_argument('--batch_size', type=int, default=64, help='Mini-batch size (default = xx)')
     parser.add_argument('--gpu_ids', type=str, default='0', help='List IDs of GPU available. ex) --gpu_ids=0,1,2,3 , Use -1 for CPU mode')
     parser.add_argument('--workers', type=int, default=1, help='Number of worker threads for data loading')

@@ -124,29 +124,40 @@ class GeneratorDC(nn.Module):
         :param out_channels: output image channels
         """
         super().__init__()
-        inner_filters = 128
-        nf = [inner_filters * 2 ** a for a in range(4)]
+        # inner_filters = 128
+        # nf = [inner_filters * 2 ** a for a in range(4)]
+        # self.layer1 = nn.ConvTranspose2d(in_dims, nf[3]*4*4, stride=1)  # in_dims->512, 128x128 (입력이 256일 경우 예시)
+        #     nn.Sequential(
+        #     nn.Linear(in_dims, nf[3] * 4 * 4, bias=False),
+        #     nn.BatchNorm1d(nf[3] * 4 * 4),
+        #     nn.ReLU(inplace=True)
+        # )  # dense
+        # self.unflatten = nn.Unflatten(1, (nf[3], 4, 4))
+        # self.layer2 = C0nvBnLeaky(nf[3], nf[2], 'relu', 'deconv')
+        # self.layer3 = C0nvBnLeaky(nf[2], nf[1], 'relu', 'deconv')
+        # self.layer4 = C0nvBnLeaky(nf[1], nf[0], 'relu', 'deconv')
+        # self.layer5 = nn.Sequential(
+        #     nn.ConvTranspose2d(nf[0], out_channels, 4, 2, 1, bias=False),
+        #     nn.Tanh() # Binh의 논문과 다르게 BN은 넣지 않았음 (DCGAN에서는 안넣는듯해서)
+        # )
         self.layer1 = nn.Sequential(
-            nn.Linear(in_dims, nf[3] * 4 * 4, bias=False),
-            nn.BatchNorm1d(nf[3] * 4 * 4),
-            nn.ReLU(inplace=True)
-        )  # dense
-        self.unflatten = nn.Unflatten(1, (nf[3], 4, 4))
-        self.layer2 = C0nvBnLeaky(nf[3], nf[2], 'relu', 'deconv')
-        self.layer3 = C0nvBnLeaky(nf[2], nf[1], 'relu', 'deconv')
-        self.layer4 = C0nvBnLeaky(nf[1], nf[0], 'relu', 'deconv')
-        self.layer5 = nn.Sequential(
-            nn.ConvTranspose2d(nf[0], out_channels, 4, 2, 1, bias=False),
-            nn.Tanh() # Binh의 논문과 다르게 BN은 넣지 않았음 (DCGAN에서는 안넣는듯해서)
+            nn.ConvTranspose2d(in_dims, 512, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(512)
         )
+        self.layer2 = C0nvBnLeaky(512, 256, 'relu', 'deconv')
+        self.layer3 = C0nvBnLeaky(256, 128, 'relu', 'deconv')
+        self.layer4 = C0nvBnLeaky(128, 64, 'relu', 'deconv')
+        self.layer5 = C0nvBnLeaky(64, out_channels, 'relu', 'deconv', batch_on=False)
+        self.tanh = nn.Tanh()
 
-    def forward(self, x):
-        x = self.layer1(x)
-        x = self.unflatten(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-        x = self.layer5(x)
+    def forward(self, x):  # 512x1x1
+        x = self.layer1(x)  # 512,1x1->4x4
+        # x = self.unflatten(x)
+        x = self.layer2(x)  # 4x4->8x8
+        x = self.layer3(x)  # 8x8->16x16
+        x = self.layer4(x)  # 16x16->32x32
+        x = self.layer5(x)  # 32x32->64x64
+        x = self.tanh(x)
         return x
 
 

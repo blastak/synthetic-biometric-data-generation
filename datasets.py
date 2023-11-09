@@ -42,7 +42,7 @@ class ThumbnailDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         img = Image.open(self.image_path_list[index]).convert('RGB')
         real_image = self.tf(img)
-        noise = torch.randn(512)
+        noise = torch.randn(512, 1, 1)
         sample = {'latent_vector': noise, 'real_image': real_image}
         return sample
 
