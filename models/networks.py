@@ -16,7 +16,8 @@ class C0nvBnLeaky(nn.Module):
             self.conv = nn.ConvTranspose2d(in_channels, out_channels, filter_size, stride, padding, bias=bias)
 
         self.batch_on = batch_on
-        self.bn = nn.BatchNorm2d(out_channels)
+        if batch_on:
+            self.bn = nn.BatchNorm2d(out_channels)
 
     def forward(self, x):
         x = self.act(x)
