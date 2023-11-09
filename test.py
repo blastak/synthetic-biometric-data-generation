@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     ########## training dataset settings
     test_dataset = create_dataset(args.net_name, args.data_dir)
-    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True, generator=torch.Generator(device=device), num_workers=args.workers)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, generator=torch.Generator(device=device), num_workers=args.workers)
 
     ########## model settings
     if args.net_name == 'R_Thumbnail':

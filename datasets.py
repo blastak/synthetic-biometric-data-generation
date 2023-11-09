@@ -25,7 +25,7 @@ def filter_path(path_list, modality, DB_name):
 
 class ThumbnailDataset(torch.utils.data.Dataset):
     def __init__(self, image_folder_path):
-        self.image_path_list = list(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix in IMG_EXTENSIONS)
+        self.image_path_list = sorted(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix in IMG_EXTENSIONS)
         self.image_path_list = filter_path(self.image_path_list, 'iris', 'IITD')
 
         image_width = 64
@@ -59,7 +59,7 @@ class EnhancementDataset(torch.utils.data.Dataset):
     tf_condi = transforms.Compose([transforms.Resize(shrink_width, antialias=True), transforms.Resize(image_width, antialias=True)])
 
     def __init__(self, image_folder_path):
-        self.image_path_list = list(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix in IMG_EXTENSIONS)
+        self.image_path_list = sorted(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix in IMG_EXTENSIONS)
         self.image_path_list = filter_path(self.image_path_list, 'iris', 'IITD')
 
     def __len__(self):
@@ -89,7 +89,7 @@ class IDPreserveDataset(torch.utils.data.Dataset):
     ])
 
     def __init__(self, image_path_list):
-        self.image_path_list = list(p.resolve() for p in Path(image_path_list).glob('**/*') if p.suffix in IMG_EXTENSIONS)
+        self.image_path_list = sorted(p.resolve() for p in Path(image_path_list).glob('**/*') if p.suffix in IMG_EXTENSIONS)
 
     def __len__(self):
         return len(self.image_path_list)
