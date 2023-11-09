@@ -1,12 +1,14 @@
 import argparse
-import time
 import random
+from datetime import datetime, timezone, timedelta
 
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from datasets import *
 from utils import *
+
+KST = timezone(timedelta(hours=9))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -63,7 +65,7 @@ if __name__ == '__main__':
             cnt += 1
     args.exp_name = exp_name
     args.experiment_dir = experiment_dir
-    save_log(experiment_dir, time.strftime('%Y%m%d_%H%M%S'))
+    save_log(experiment_dir, datetime.now(KST).strftime('%Y%m%d_%H%M%S%z'))
     save_log(experiment_dir, cvt_args2str(vars(args)))
 
     save_log(experiment_dir, '\n' + str(model) + '\n\n')
@@ -87,4 +89,4 @@ if __name__ == '__main__':
 
     print('Finished training the model')
     print('checkpoints are saved in "%s"' % experiment_dir)
-    save_log(experiment_dir, time.strftime('%Y%m%d_%H%M%S'))
+    save_log(experiment_dir, datetime.now(KST).strftime('%Y%m%d_%H%M%S%z'))
