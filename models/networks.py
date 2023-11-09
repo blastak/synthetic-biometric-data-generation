@@ -3,69 +3,81 @@ import torch.nn as nn
 
 
 class C0nvBnLeaky(nn.Module):
-    def __init__(self, in_channels, out_channels, activation='leaky_relu', conv_type='conv', filter_size=4, stride=2, padding=1):
+    def __init__(self, in_channels, out_channels, activation='leaky_relu', conv_type='conv', filter_size=4, stride=2, padding=1, batch_on=True, bias=False):
         super().__init__()
-        if conv_type == 'conv':
-            self.conv = nn.Conv2d(in_channels, out_channels, filter_size, stride, padding, bias=False)
-        else:
-            self.conv = nn.ConvTranspose2d(in_channels, out_channels, filter_size, stride, padding, bias=False)
-
-        self.bn = nn.BatchNorm2d(out_channels)
-
         if activation == 'leaky_relu':
             self.act = nn.LeakyReLU(0.2, inplace=True)
         else:
             self.act = nn.ReLU(inplace=True)
 
+        if conv_type == 'conv':
+            self.conv = nn.Conv2d(in_channels, out_channels, filter_size, stride, padding, bias=bias)
+        else:
+            self.conv = nn.ConvTranspose2d(in_channels, out_channels, filter_size, stride, padding, bias=bias)
+
+        self.batch_on = batch_on
+        self.bn = nn.BatchNorm2d(out_channels)
+
     def forward(self, x):
-        x = self.conv(x)
-        x = self.bn(x)
         x = self.act(x)
+        x = self.conv(x)
+        if self.batch_on:
+            x = self.bn(x)
         return x
 
 
 class GeneratorUnet(nn.Module):
-    def __init__(self, in_channels):
+    def __init__(self, in_channels, out_channels=1):
         """
         GeneratorUnet
         :param in_channels: condition image의 채널수(EnhancementGAN의 경우 1, IDPreserveGAN의 경우 2~3)
         """
         super().__init__()
         inner_filters = 64
-        nf = [inner_filters * 2 ** a for a in range(5)]
-        self.encoder1 = nn.Sequential(
-            nn.Conv2d(in_channels, nf[0], 4, 2, 1, bias=False),
-            nn.LeakyReLU(0.2, inplace=True)
-        )
+        nf = [inner_filters * 2 ** a for a in range(4)]
+        self.encoder1 = nn.Conv2d(in_channels, nf[0], 4, 2, 1, bias=False)
         self.encoder2 = C0nvBnLeaky(nf[0], nf[1])
         self.encoder3 = C0nvBnLeaky(nf[1], nf[2])
         self.encoder4 = C0nvBnLeaky(nf[2], nf[3])
-        self.encoder5 = C0nvBnLeaky(nf[3], nf[3])  # 특이하게 512 -> 512
-        self.encoder6 = C0nvBnLeaky(nf[3], nf[4])
-        self.decoder6 = C0nvBnLeaky(nf[4], nf[3], 'relu', 'deconv')
+        self.encoder5 = C0nvBnLeaky(nf[3], nf[3])
+        self.encoder6 = C0nvBnLeaky(nf[3], nf[3])
+        self.encoder7 = C0nvBnLeaky(nf[3], nf[3])
+        self.encoder8 = C0nvBnLeaky(nf[3], nf[3], batch_on=False)
+        self.decoder8 = C0nvBnLeaky(nf[3], nf[3], 'relu', 'deconv')
+        self.decoder7 = C0nvBnLeaky(nf[3] * 2, nf[3], 'relu', 'deconv')
+        self.decoder6 = C0nvBnLeaky(nf[3] * 2, nf[3], 'relu', 'deconv')
         self.decoder5 = C0nvBnLeaky(nf[3] * 2, nf[3], 'relu', 'deconv')
         self.decoder4 = C0nvBnLeaky(nf[3] * 2, nf[2], 'relu', 'deconv')
         self.decoder3 = C0nvBnLeaky(nf[2] * 2, nf[1], 'relu', 'deconv')
         self.decoder2 = C0nvBnLeaky(nf[1] * 2, nf[0], 'relu', 'deconv')
         self.decoder1 = nn.Sequential(
-            nn.ConvTranspose2d(nf[0] * 2, 1, 4, 2, 1, bias=False),
+            C0nvBnLeaky(nf[0] * 2, out_channels, 'relu', 'deconv', batch_on=False, bias=True),
             nn.Tanh()
         )
+        self.drop_out = nn.Dropout(p=0.5)
 
     def forward(self, x):
-        e1 = self.encoder1(x)
-        e2 = self.encoder2(e1)
-        e3 = self.encoder3(e2)
-        e4 = self.encoder4(e3)
-        e5 = self.encoder5(e4)
-        e6 = self.encoder6(e5)
-        d6 = self.decoder6(e6)
-        d5 = self.decoder5(torch.cat((e5, d6), dim=1))
-        d4 = self.decoder4(torch.cat((e4, d5), dim=1))
-        d3 = self.decoder3(torch.cat((e3, d4), dim=1))
-        d2 = self.decoder2(torch.cat((e2, d3), dim=1))
-        d1 = self.decoder1(torch.cat((e1, d2), dim=1))
-        return d1
+        e1 = self.encoder1(x)  # in_channels->64, 128x128 (입력이 256일 경우 예시)
+        e2 = self.encoder2(e1)  # 64->128, 64x64
+        e3 = self.encoder3(e2)  # 128->256, 32x32
+        e4 = self.encoder4(e3)  # 256->512, 16x16
+        e5 = self.encoder5(e4)  # 512->512, 8x8
+        e6 = self.encoder6(e5)  # 512->512, 4x4
+        e7 = self.encoder7(e6)  # 512->512, 2x2
+        x = self.encoder8(e7)  # 512->512, 1x1
+
+        x = self.decoder8(x)  # 512->512, 2x2
+        x = self.decoder7(torch.cat((x, e7), dim=1))  # (512+512)->512, 4x4
+        x = self.drop_out(x)
+        x = self.decoder6(torch.cat((x, e6), dim=1))  # (512+512)->512, 8x8
+        x = self.drop_out(x)
+        x = self.decoder5(torch.cat((x, e5), dim=1))  # (512+512)->512, 16x16
+        x = self.drop_out(x)
+        x = self.decoder4(torch.cat((x, e4), dim=1))  # (512+512)->256, 32x32
+        x = self.decoder3(torch.cat((x, e3), dim=1))  # (256+256)->128, 64x64
+        x = self.decoder2(torch.cat((x, e2), dim=1))  # (128+128)->64, 128x128
+        x = self.decoder1(torch.cat((x, e1), dim=1))  # (64+64)->1, 256x256
+        return x
 
 
 class Discriminator(nn.Module):
@@ -78,18 +90,12 @@ class Discriminator(nn.Module):
         super().__init__()
         inner_filters = 64 if mode == 'patch' else 128
         nf = [inner_filters * 2 ** a for a in range(4)]
-        self.layer1 = nn.Sequential(
-            nn.Conv2d(in_channels, nf[0], 4, 2, 1, bias=False),
-            nn.LeakyReLU(0.2, inplace=True)
-        )
+        self.layer1 = nn.Conv2d(in_channels, nf[0], 4, 2, 1, bias=True)
         self.layer2 = C0nvBnLeaky(nf[0], nf[1])
         self.layer3 = C0nvBnLeaky(nf[1], nf[2])
         if mode == 'patch':
-            self.layer4 = C0nvBnLeaky(nf[2], nf[3], stride=1)  # stride=1
-            self.layer5 = nn.Sequential(
-                nn.Conv2d(nf[3], 1, 4, 1, 1, bias=False),  # stride=1
-                nn.Sigmoid()
-            )
+            self.layer4 = C0nvBnLeaky(nf[2], nf[3], stride=1)
+            self.layer5 = C0nvBnLeaky(nf[3], 1, stride=1, batch_on=False, bias=True)
         else:
             image_width = 64
             tensor_width = image_width // (2 ** 4) # 64->32->16->8->4

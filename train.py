@@ -95,11 +95,6 @@ if __name__ == '__main__':
             image_path = os.path.join(experiment_dir, 'image_epoch%06d.png' % epoch)
             model.save_generated_image(image_path)
 
-    ckpt_path = os.path.join(experiment_dir, 'ckpt_epoch_latest.pth')
-    model.save_checkpoints(ckpt_path)
-    image_path = os.path.join(experiment_dir, 'image_epoch_latest.png')
-    model.save_generated_image(image_path)
-
     print('Finished training the model')
     print('checkpoints are saved in "%s"' % experiment_dir)
 

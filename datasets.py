@@ -74,7 +74,8 @@ class EnhancementDataset(torch.utils.data.Dataset):
 
 
 class IDPreserveDataset(torch.utils.data.Dataset):
-    image_width = 320
+    # image_width = 320
+    image_width = 256
     tf_real = transforms.Compose([
         transforms.Grayscale(),
         transforms.Resize((image_width, image_width), antialias=True),
