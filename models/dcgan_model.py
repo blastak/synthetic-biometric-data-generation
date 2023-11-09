@@ -24,6 +24,8 @@ class DCGANModel(BaseGANModel):
         self.fake = self.net_G(self.latent_vector)
 
     def backward_G(self):
+        set_requires_grad(self.net_D, False)
+
         self.optimizer_G.zero_grad()
 
         pred_fake = self.net_D(self.fake)
@@ -33,6 +35,8 @@ class DCGANModel(BaseGANModel):
         self.optimizer_G.step()
 
     def backward_D(self):
+        set_requires_grad(self.net_D, True)
+
         self.optimizer_D.zero_grad()
 
         pred_real = self.net_D(self.real_image)

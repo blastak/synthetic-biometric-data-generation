@@ -25,6 +25,8 @@ class Pix2pixModel(BaseGANModel):
         self.fake_image = self.net_G(self.condi_image)
 
     def backward_G(self):
+        set_requires_grad(self.net_D, False)
+
         self.optimizer_G.zero_grad()
 
         fake_concat = torch.cat((self.condi_image, self.fake_image), dim=1)
@@ -39,6 +41,8 @@ class Pix2pixModel(BaseGANModel):
         self.optimizer_G.step()
 
     def backward_D(self):
+        set_requires_grad(self.net_D, True)
+
         self.optimizer_D.zero_grad()
 
         real_concat = torch.cat((self.condi_image, self.real_image), dim=1)

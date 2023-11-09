@@ -3,6 +3,12 @@ from abc import ABC, abstractmethod
 import torch
 from torchvision.utils import save_image
 
+
+def set_requires_grad(net, requires_grad: bool):
+    for param in net.parameters():
+        param.requires_grad = requires_grad
+
+
 class BaseGANModel(ABC):
     def __init__(self):
         super().__init__()
