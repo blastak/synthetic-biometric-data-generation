@@ -73,10 +73,10 @@ class EnhancementDataset(torch.utils.data.Dataset):
         img = Image.open(self.image_path_list[index]).convert('RGB')
         real_image = self.tf_real(img)
         condi_image = self.tf_condi(real_image)
-        # if random.random() > 0.5:
-        #     tf = transforms.RandomHorizontalFlip(p=1.)
-        #     real_image = tf(real_image)
-        #     condi_image = tf(condi_image)
+        if random.random() > 0.5:
+            tf = transforms.RandomHorizontalFlip(p=1.)
+            real_image = tf(real_image)
+            condi_image = tf(condi_image)
         sample = {'condition_image': condi_image, 'real_image': real_image}
         return sample
 
