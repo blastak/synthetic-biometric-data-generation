@@ -82,10 +82,11 @@ class IDPreserveDataset(torch.utils.data.Dataset):
         transforms.ToTensor(),
         transforms.Normalize(0.5, 0.5),
     ])
+    condition_channels = 2
     tf_condi = transforms.Compose([
         transforms.ToTensor(),
         transforms.Resize((image_width, image_width), antialias=True),
-        transforms.Normalize(0.5, 0.5)
+        transforms.Normalize([0.5] * condition_channels, [0.5] * condition_channels)
     ])
 
     def __init__(self, image_path_list):
@@ -96,10 +97,13 @@ class IDPreserveDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         img = Image.open(self.image_path_list[index]).convert('RGB')
+
+        # right-side is real image
         w, h = img.size
         img_real = img.crop((w // 2, 0, w, h))
         real_image = self.tf_real(img_real)
 
+        # left-side is condition image
         img_condi = img.crop((0, 0, w // 2, h))
         r, g, b = img_condi.split()
         img_condi = np.stack([b, r], axis=2)  # "r" is same as "g"
