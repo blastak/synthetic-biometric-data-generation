@@ -1,4 +1,5 @@
 from pathlib import Path
+import random
 
 import numpy as np
 import torch
@@ -26,7 +27,8 @@ def filter_path(path_list, modality, DB_name):
 class ThumbnailDataset(torch.utils.data.Dataset):
     def __init__(self, image_folder_path):
         self.image_path_list = sorted(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix in IMG_EXTENSIONS)
-        self.image_path_list = filter_path(self.image_path_list, 'iris', 'IITD')
+        if 'iris' in image_folder_path.lower():
+            self.image_path_list = filter_path(self.image_path_list, 'iris', 'IITD')
 
         image_width = 64
         self.tf = transforms.Compose([
@@ -34,6 +36,7 @@ class ThumbnailDataset(torch.utils.data.Dataset):
             transforms.Resize((image_width, image_width), antialias=True),
             transforms.ToTensor(),
             transforms.Normalize(0.5, 0.5),
+            transforms.RandomHorizontalFlip(),
         ])
 
     def __len__(self):
@@ -60,7 +63,8 @@ class EnhancementDataset(torch.utils.data.Dataset):
 
     def __init__(self, image_folder_path):
         self.image_path_list = sorted(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix in IMG_EXTENSIONS)
-        self.image_path_list = filter_path(self.image_path_list, 'iris', 'IITD')
+        if 'iris' in image_folder_path.lower():
+            self.image_path_list = filter_path(self.image_path_list, 'iris', 'IITD')
 
     def __len__(self):
         return len(self.image_path_list)
@@ -69,6 +73,10 @@ class EnhancementDataset(torch.utils.data.Dataset):
         img = Image.open(self.image_path_list[index]).convert('RGB')
         real_image = self.tf_real(img)
         condi_image = self.tf_condi(real_image)
+        # if random.random() > 0.5:
+        #     tf = transforms.RandomHorizontalFlip(p=1.)
+        #     real_image = tf(real_image)
+        #     condi_image = tf(condi_image)
         sample = {'condition_image': condi_image, 'real_image': real_image}
         return sample
 

@@ -22,7 +22,7 @@ if __name__ == '__main__':
     ########## torch environment settings
     device = torch.device('cuda:{}'.format(gpu_ids[0]) if (torch.cuda.is_available() and len(gpu_ids) > 0) else 'cpu')
     torch.set_default_device(device)  # working on torch>2.0.0
-    if torch.cuda.is_available() and len(gpu_ids) > 1:
+    if torch.cuda.is_available() and len(gpu_ids) >= 1:
         torch.multiprocessing.set_start_method('spawn')
 
     ########## training dataset settings

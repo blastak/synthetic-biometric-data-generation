@@ -21,14 +21,14 @@ class DCGANModel(BaseGANModel):
 
 
     def forward(self):
-        self.fake = self.net_G(self.latent_vector)
+        self.fake_image = self.net_G(self.latent_vector)
 
     def backward_G(self):
         set_requires_grad(self.net_D, False)
 
         self.optimizer_G.zero_grad()
 
-        pred_fake = self.net_D(self.fake)
+        pred_fake = self.net_D(self.fake_image)
         self.loss_G = self.lossF_GAN(pred_fake, torch.tensor(1.).expand_as(pred_fake))
         self.loss_G.backward()
 
@@ -42,7 +42,7 @@ class DCGANModel(BaseGANModel):
         pred_real = self.net_D(self.real_image)
         loss_GAN_real = self.lossF_GAN(pred_real, torch.tensor(1.).expand_as(pred_real))
 
-        pred_fake = self.net_D(self.fake.detach())
+        pred_fake = self.net_D(self.fake_image.detach())
         loss_GAN_fake = self.lossF_GAN(pred_fake, torch.tensor(0.).expand_as(pred_fake))
 
         self.loss_D = (loss_GAN_real + loss_GAN_fake) * 0.5
