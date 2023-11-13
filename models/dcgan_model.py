@@ -19,7 +19,6 @@ class DCGANModel(BaseGANModel):
         if self.fixed_data is None:
             self.fixed_data = self.latent_vector.clone()
 
-
     def forward(self):
         self.fake_image = self.net_G(self.latent_vector)
 

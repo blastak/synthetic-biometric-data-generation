@@ -1,10 +1,5 @@
-### built-in modules
-
-### 3rd-party modules
-import numpy as np
 import cv2
 
-### project modules
 from bio_modals.neurotecbase import *
 
 

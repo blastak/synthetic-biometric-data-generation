@@ -22,7 +22,7 @@ if __name__ == '__main__':
     ########## torch environment settings
     device = torch.device('cuda:{}'.format(gpu_ids[0]) if (torch.cuda.is_available() and len(gpu_ids) > 0) else 'cpu')
     torch.set_default_device(device)  # working on torch>2.0.0
-    if torch.cuda.is_available() and len(gpu_ids) >= 1:
+    if torch.cuda.is_available() and len(gpu_ids) >= 1:  # 이 구문 다시 확인 필요. 언제 필요로 하는가?
         torch.multiprocessing.set_start_method('spawn')
 
     ########## training dataset settings
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     model.load_checkpoints(args.ckpt_path)
 
     ########## make saving folder
-    d,f = os.path.split(args.ckpt_path)
+    d, f = os.path.split(args.ckpt_path)
     save_dir = os.path.join(d, f.split('.')[0])
     cnt = 1
     while True:

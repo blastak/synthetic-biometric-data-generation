@@ -53,7 +53,7 @@ if __name__ == '__main__':
     image_path_list = filter_path(image_path_list, 'iris', 'IITD')
     for i, img_path in enumerate(image_path_list):
         s, q = obj.create_subject(img_path.as_posix())
-        print('original quality %s' % (img_path.as_posix()),q)
+        print('original quality %s' % (img_path.as_posix()), q)
         if s is None:
             print('not include')
             continue
@@ -136,6 +136,6 @@ if __name__ == '__main__':
             cnt_acquisition_demand -= 1
 
     # ####여기서 subject_kept 파일 세이브 해야함
-    for i in range(cnt_originals,len(subjects_kept)):
+    for i in range(cnt_originals, len(subjects_kept)):
         img_to_save = obj.restore_image_from_subject(subjects_kept[i])
         # cv2.imwrite('%06d.bmp' % (i-cnt_originals), img_to_save)
