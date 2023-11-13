@@ -77,6 +77,15 @@ class NeurotecBase(Base):
 
         return subject, quality
 
+    def restore_image_from_subject(self, subject):
+        if self.__class__.__name__ == 'Fingerprint':
+            nimage = subject.Fingers.get_Item(0).Image
+        else:
+            nimage = subject.Irises.get_Item(0).Image
+        image = np.frombuffer(self.SDK.IO.NBuffer.ToArray(nimage.GetPixels()), dtype=np.uint8)
+        image = image.reshape((nimage.Height, nimage.Width))
+        return image
+
     def check_license(self, modules_for_activating):
         if not self.is_activated:
             self.is_activated = self.SDK.Licensing.NLicense.ObtainComponents("/local", 5000, modules_for_activating)

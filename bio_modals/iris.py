@@ -90,9 +90,8 @@ class Iris(NeurotecBase):
             subject, quality = self.create_subject(img_or_subject)  ## iris, pupil detection
             if subject is None:
                 return subject, quality, iris_code, center, out_radius
-        nimage = subject.Irises.get_Item(0).Image
-        image = np.frombuffer(self.SDK.IO.NBuffer.ToArray(nimage.GetPixels()), dtype=np.uint8)
-        image = image.reshape((nimage.Height, nimage.Width))
+
+        image = self.restore_image_from_subject(subject)
 
         inners = [[] for _ in range(32)]
         outers = [[] for _ in range(32)]
