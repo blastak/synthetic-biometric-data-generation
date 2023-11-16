@@ -1,12 +1,9 @@
-### built-in modules
 import os
 import sys
 
-### 3rd-party modules
 import clr  # package name : pythonnet
 import numpy as np
 
-### project modules
 from bio_modals.base import *
 
 

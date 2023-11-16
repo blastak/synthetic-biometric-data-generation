@@ -1,12 +1,7 @@
-### built-in modules
-
-### 3rd-party modules
-import numpy as np
 import cv2
 from circle_fit import taubinSVD
 from scipy.fftpack import fft, ifft, fftshift
 
-### project modules
 from bio_modals.neurotecbase import *
 
 
@@ -142,7 +137,7 @@ class Iris(NeurotecBase):
 
     def make_condition_image(self, feature_vector, position_angle_change: Optional[dict] = None):
         image_shape = position_angle_change['shape']
-        xi,yi = position_angle_change['center']
+        xi, yi = position_angle_change['center']
         ro = position_angle_change['out_radius']
         polar_a_color = cv2.rotate(feature_vector, cv2.ROTATE_90_COUNTERCLOCKWISE)
         img_recon = cv2.warpPolar(polar_a_color, image_shape[::-1], (xi, yi), ro + 4, cv2.WARP_POLAR_LINEAR + cv2.INTER_LINEAR + cv2.WARP_FILL_OUTLIERS + cv2.WARP_INVERSE_MAP)
