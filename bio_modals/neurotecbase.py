@@ -156,3 +156,12 @@ class NeurotecBase(Base):
                 print('%06d %s' % (cnt, line_txt))
 
         return results, qualities1, qualities2
+
+    def save_subject_template(self, filename, subject):
+        self.SDK.IO.NFile.WriteAllBytes(filename, subject.GetTemplateBuffer())
+
+    def load_subject_template(self, filename):
+        new_subject = self.SDK.Biometrics.NSubject()
+        # 주의사항: template buffer에는 image 미포함임
+        new_subject.SetTemplateBuffer(self.SDK.IO.NFile.ReadAllBytes(filename))
+        return new_subject
