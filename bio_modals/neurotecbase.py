@@ -37,8 +37,10 @@ class NeurotecBase(Base):
         pass
 
     def create_subject(self, img_or_file):
-        if type(img_or_file) == str and os.path.exists(img_or_file):
+        if type(img_or_file) == str:
             nimage = self.SDK.Images.NImage.FromFile(img_or_file)
+        elif 'Path' in img_or_file.__class__.__name__:
+            nimage = self.SDK.Images.NImage.FromFile(img_or_file.as_posix())
         elif type(img_or_file) == np.ndarray:
             ww, hh = img_or_file.shape[1::-1]
             cc = 1
