@@ -135,6 +135,29 @@ class Iris(NeurotecBase):
 
         return subject, quality, zero_pupil_iris_code, center, out_radius
 
+    def save_subject_and_boundary(self, filename, subject):
+        f, e = os.path.splitext(filename)
+        self.save_subject_template(f + '.subj', subject)
+
+        attrs = subject.Irises.get_Item(0).Objects
+        inners = []
+        outers = []
+        for attr in attrs:
+            for i, inner in enumerate(attr.InnerBoundaryPoints):
+                inners.append([inner.X, inner.Y])
+            for i, outer in enumerate(attr.OuterBoundaryPoints):
+                outers.append([outer.X, outer.Y])
+        inners = np.array(inners)
+        outers = np.array(outers)
+        # save
+        np.savez(f, inners=inners, outers=outers)
+
+    def load_subject_and_boundary(self, filename):
+        f, e = os.path.splitext(filename)
+        loaded_subject = self.load_subject_template(filename)
+        loaded_npz = np.load(f+'.npz')
+        return loaded_subject, loaded_npz['inners'], loaded_npz['outers']
+
     def make_condition_image(self, feature_vector, position_angle_change: Optional[dict] = None):
         image_shape = position_angle_change['shape']
         xi, yi = position_angle_change['center']

@@ -1,3 +1,4 @@
+import os
 import random
 from pathlib import Path
 
@@ -50,6 +51,34 @@ class ThumbnailDataset(torch.utils.data.Dataset):
         return sample
 
 
+class ThumbnailIriscodeDataset(torch.utils.data.Dataset):
+    def __init__(self, image_folder_path):
+        self.image_path_list = sorted(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix in IMG_EXTENSIONS)
+
+        self.image_width = 64
+        self.tf = transforms.Compose([
+            transforms.Grayscale(),
+            transforms.Resize((self.image_width, self.image_width), antialias=True),
+            transforms.ToTensor(),
+            transforms.Normalize(0.5, 0.5),
+            transforms.RandomHorizontalFlip(),
+        ])
+
+    def __len__(self):
+        return len(self.image_path_list)
+
+    def __getitem__(self, index):
+        _, ly, lx = os.path.splitext(os.path.basename(self.image_path_list[index]))[0].split('_')
+        ly = int(ly)
+        lx = int(lx)
+        img = Image.open(self.image_path_list[index]).convert('L')
+        img = img.crop((lx, ly, lx + self.image_width, ly + self.image_width))
+        real_image = self.tf(img)
+        noise = torch.randn(512, 1, 1)
+        sample = {'latent_vector': noise, 'real_image': real_image}
+        return sample
+
+
 class EnhancementDataset(torch.utils.data.Dataset):
     image_width = 256
     tf_real = transforms.Compose([
@@ -77,6 +106,41 @@ class EnhancementDataset(torch.utils.data.Dataset):
             tf = transforms.RandomHorizontalFlip(p=1.)
             real_image = tf(real_image)
             condi_image = tf(condi_image)
+        sample = {'condition_image': condi_image, 'real_image': real_image}
+        return sample
+
+
+class EnhancementIriscodeDataset(torch.utils.data.Dataset):
+    image_width = 256
+    tf_real = transforms.Compose([
+        transforms.Grayscale(),
+        transforms.Resize((image_width, image_width), antialias=True),
+        transforms.ToTensor(),
+        transforms.Normalize(0.5, 0.5),
+    ])
+    patch_size = 64
+
+    def __init__(self, image_folder_path):
+        self.image_path_list = sorted(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix in IMG_EXTENSIONS)
+
+    def __len__(self):
+        return len(self.image_path_list)
+
+    def __getitem__(self, index):
+        img = Image.open(self.image_path_list[index]).convert('L')
+        padded_img = Image.new(mode='L', size=(img.width, img.width))
+        x, y = 0, padded_img.height // 2 - img.height // 2
+        padded_img.paste(img, (x,y))
+        real_image = self.tf_real(padded_img)
+
+        _, ly, lx = os.path.splitext(os.path.basename(self.image_path_list[index]))[0].split('_')
+        ly = int(ly)
+        lx = int(lx)
+        crop = img.crop((lx, ly, lx + self.patch_size, ly + self.patch_size))
+        padded_crop = Image.new(mode='L', size=(img.width, img.width))
+        padded_crop.paste(crop, (x + lx, y + ly))
+        condi_image = self.tf_real(padded_crop)
+
         sample = {'condition_image': condi_image, 'real_image': real_image}
         return sample
 
@@ -118,4 +182,38 @@ class IDPreserveDataset(torch.utils.data.Dataset):
         condi_image = self.tf_condi(img_condi)
 
         sample = {'condition_image': condi_image, 'real_image': real_image}
+        return sample
+
+
+class IDPreserveTwoDataset(torch.utils.data.Dataset):
+    # image_width = 320
+    image_width = 256
+    tf_real = transforms.Compose([
+        transforms.Grayscale(),
+        transforms.Resize((image_width, image_width), antialias=True),
+        transforms.ToTensor(),
+        transforms.Normalize(0.5, 0.5),
+    ])
+    condition_channels = 2
+    tf_condi = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Resize((image_width, image_width), antialias=True),
+        transforms.Normalize([0.5] * condition_channels, [0.5] * condition_channels)
+    ])
+
+    def __init__(self, image_path_list1, image_path_list2):
+        self.image_path_list1 = sorted(p.resolve() for p in Path(image_path_list1).glob('**/*') if p.suffix in IMG_EXTENSIONS)
+        self.image_path_list2 = sorted(p.resolve() for p in Path(image_path_list2).glob('**/*') if p.suffix in IMG_EXTENSIONS)
+
+    def __len__(self):
+        return len(self.image_path_list1)
+
+    def __getitem__(self, index):
+        img1 = Image.open(self.image_path_list1[index]).convert('RGB')
+        condi_image = self.tf_real(img1)
+
+        img2 = Image.open(self.image_path_list2[index]).convert('RGB')
+        target_image = self.tf_real(img2)
+
+        sample = {'condition_image': condi_image, 'real_image': target_image}
         return sample

@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+import datasets
 from datasets import *
 from utils import *
 
@@ -37,7 +38,9 @@ if __name__ == '__main__':
         torch.multiprocessing.set_start_method('spawn')
 
     ########## training dataset settings
-    train_dataset = create_dataset(args.net_name, args.data_dir)
+    # train_dataset = create_dataset(args.net_name, args.data_dir)
+    # train_dataset = datasets.ThumbnailIriscodeDataset(args.data_dir)
+    train_dataset = datasets.EnhancementIriscodeDataset(args.data_dir)
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, generator=torch.Generator(device=device), num_workers=args.workers)
 
     ########## model settings
