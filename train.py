@@ -40,7 +40,8 @@ if __name__ == '__main__':
     ########## training dataset settings
     # train_dataset = create_dataset(args.net_name, args.data_dir)
     # train_dataset = datasets.ThumbnailIriscodeDataset(args.data_dir)
-    train_dataset = datasets.EnhancementIriscodeDataset(args.data_dir)
+    # train_dataset = datasets.EnhancementIriscodeDataset(args.data_dir)
+    train_dataset = datasets.IDPreservePairMaskDataset(args.data_dir)
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, generator=torch.Generator(device=device), num_workers=args.workers)
 
     ########## model settings

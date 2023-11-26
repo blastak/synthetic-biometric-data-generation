@@ -13,7 +13,8 @@ class Pix2pixModel(BaseGANModel):
         self.optimizer_D = torch.optim.Adam(self.net_D.parameters(), lr=0.0002, betas=(0.5, 0.999))
         self.lossF_GAN = nn.BCEWithLogitsLoss()
         self.lossF_L1 = nn.L1Loss()
-        self.lambda_L1 = 100
+        self.lambda1_L1 = 100
+        self.lambda2_L1 = 10
 
     def input_data(self, data):
         self.condi_image = data['condition_image'].to(self.device)
@@ -31,11 +32,19 @@ class Pix2pixModel(BaseGANModel):
 
         fake_concat = torch.cat((self.condi_image, self.fake_image), dim=1)
         pred_fake = self.net_D(fake_concat)
-        loss_GAN = self.lossF_GAN(pred_fake, torch.tensor(1.).expand_as(pred_fake))
+        self.loss_GAN = self.lossF_GAN(pred_fake, torch.tensor(1.).expand_as(pred_fake))
 
-        loss_L1 = self.lossF_L1(self.real_image, self.fake_image)
+        M = self.condi_image.clone()[:, -1, :, :]
+        M = M.unsqueeze(dim=1)
+        M = (M > 0).float()  # thresholding
+        fake_B_gen = self.fake_image.clone()
+        real_B_gen = self.real_image.clone()
+        cond_generated = self.lossF_L1(M * fake_B_gen, M * real_B_gen)
+        M = 1 - M
+        cond_inherited = self.lossF_L1(M * fake_B_gen, M * real_B_gen)
+        self.loss_L1 = cond_generated * self.lambda1_L1 + cond_inherited * self.lambda2_L1
 
-        self.loss_G = loss_GAN + loss_L1 * self.lambda_L1
+        self.loss_G = self.loss_GAN + self.loss_L1
         self.loss_G.backward()
 
         self.optimizer_G.step()
