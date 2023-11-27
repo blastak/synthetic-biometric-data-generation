@@ -26,7 +26,8 @@ if __name__ == '__main__':
         torch.multiprocessing.set_start_method('spawn')
 
     ########## training dataset settings
-    test_dataset = create_dataset(args.net_name, args.data_dir)
+    # test_dataset = create_dataset(args.net_name, args.data_dir)
+    test_dataset = datasets.IDPreservePairMaskDataset(args.data_dir)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, generator=torch.Generator(device=device), num_workers=args.workers)
 
     ########## model settings
