@@ -10,7 +10,7 @@ from PIL import Image
 IMG_EXTENSIONS = [
     '.jpg', '.JPG', '.jpeg', '.JPEG',
     '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP',
-    '.tif', '.TIF', '.tiff', '.TIFF',
+    # '.tif', '.TIF', '.tiff', '.TIFF',
 ]
 
 
@@ -60,7 +60,7 @@ class ThumbnailIriscodeDataset(torch.utils.data.Dataset):
             transforms.Grayscale(),
             transforms.Resize((self.image_width, self.image_width), antialias=True),
             transforms.ToTensor(),
-            transforms.Normalize(0.5, 0.5),
+            transforms.Normalize([0.5], [0.5]),
             transforms.RandomHorizontalFlip(),
         ])
 
@@ -68,11 +68,7 @@ class ThumbnailIriscodeDataset(torch.utils.data.Dataset):
         return len(self.image_path_list)
 
     def __getitem__(self, index):
-        _, ly, lx = os.path.splitext(os.path.basename(self.image_path_list[index]))[0].split('_')
-        ly = int(ly)
-        lx = int(lx)
         img = Image.open(self.image_path_list[index]).convert('L')
-        img = img.crop((lx, ly, lx + self.image_width, ly + self.image_width))
         real_image = self.tf(img)
         noise = torch.randn(512, 1, 1)
         sample = {'latent_vector': noise, 'real_image': real_image}
@@ -260,4 +256,3 @@ class IDPreservePairMaskDataset(torch.utils.data.Dataset):
 
         sample = {'condition_image': condi_image, 'real_image': real_image}
         return sample
-    
