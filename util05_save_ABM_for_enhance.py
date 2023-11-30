@@ -17,10 +17,9 @@ IMG_EXTENSIONS = [
 image_path_list = sorted(p.resolve() for p in Path(r'D:\Dataset\02_Iris\code576x66_IITD_CASIA').glob('**/*') if p.suffix in IMG_EXTENSIONS)
 lbl_path_list = sorted(p.resolve() for p in Path(r'D:\Dataset\02_Iris\code576x66_IITD_CASIA').glob('**/*') if p.suffix == '.tiff')
 
-mold_lbl_list = sorted(p.resolve() for p in Path(r'D:\Dataset\02_Iris\OpenEDS\Semantic_Segmentation_Dataset\train\detected').glob('**/*') if p.suffix == '.tiff')
-mold_npz_list = sorted(p.resolve() for p in Path(r'D:\Dataset\02_Iris\OpenEDS\Semantic_Segmentation_Dataset\train\detected').glob('**/*') if p.suffix == '.npz')
+mold_npz_list = sorted(p.resolve() for p in Path(r'D:\Dataset\02_Iris\OpenEDS\Semantic_Segmentation_Dataset\validation\detected').glob('**/*') if p.suffix == '.npz')
 
-out_path = r'D:\Dataset\02_Iris\for_enhance_train_ABM2'
+out_path = r'D:\Dataset\02_Iris\for_enhance_ABM3\test'
 os.makedirs(out_path, exist_ok=True)
 
 target_height = 66
@@ -36,20 +35,19 @@ for idx in range(len(image_path_list)):
     ## 576x66 의 중간에서부터 64x64 잘라보기
     patch_size = 64
     offset_y = target_img.shape[0] // 2 - patch_size // 2
-    offset_x = target_img.shape[1] // 2 - patch_size // 2
+    offset_x = target_img.shape[1] // 2 - patch_size  # 생각보다 왼쪽이 좋을 듯(=원에서 왼쪽 아래)
     score = []
     for i in [0, -1, 1]:
         y = offset_y + i
-        for j in range(33):
+        for j in range(51):
             x = offset_x + j
-            patch_lbl = target_lbl[np.ix_(range(y,y + patch_size), range(x,x + patch_size))]
+            patch_lbl = target_lbl[np.ix_(range(y, y + patch_size), range(x, x + patch_size))]
             score.append([(patch_lbl == 255).sum(), i, j])
             x = offset_x - j
-            patch_lbl = target_lbl[np.ix_(range(y,y + patch_size), range(x,x + patch_size))]
+            patch_lbl = target_lbl[np.ix_(range(y, y + patch_size), range(x, x + patch_size))]
             score.append([(patch_lbl == 255).sum(), i, -j])
     score.sort(key=lambda x: (-x[0], abs(x[1]), abs(x[2])))
     lx, ly = offset_x + score[0][2], offset_y + score[0][1]
-
 
     ### squaring
 
@@ -68,18 +66,22 @@ for idx in range(len(image_path_list)):
     # M[cp:cp+hh,:] = target_lbl
     # stacked = np.hstack([A,B,M])
 
-
     ### re-circle
-    idx_mold = random.randint(0,len(mold_npz_list)-1)
+    idx_mold = random.randint(0, len(mold_npz_list) - 1)
     loaded = np.load(mold_npz_list[idx_mold].as_posix())
     inners = loaded['inners']
     outers = loaded['outers']
     inners1 = np.roll(inners[::-1], 1, axis=0)  # 역순으로 바꾸기
     outers1 = np.roll(outers[::-1], 1, axis=0)
-    hh2,ww2 = 300,400
-    recon_img = np.zeros((hh2, ww2),dtype=np.uint8)
-    recon_lbl = np.zeros((hh2, ww2),dtype=np.uint8)
-    recon_patch = np.zeros((hh2, ww2),dtype=np.uint8)
+    cx, cy = map(int, sum(outers1) / len(outers1))
+    ox, oy = 256 // 2 - cx, 256 // 2 - cy
+    inners1[:, 0] += ox
+    outers1[:, 0] += ox
+    inners1[:, 1] += oy
+    outers1[:, 1] += oy
+    recon_img = np.zeros((256, 256), dtype=np.uint8)
+    recon_lbl = np.zeros((256, 256), dtype=np.uint8)
+    recon_patch = np.zeros((256, 256), dtype=np.uint8)
     for i in range(len(inners1)):
         p_tl = inners1[i]
         p_bl = outers1[i]
@@ -99,16 +101,15 @@ for idx in range(len(image_path_list)):
         piece = cv2.warpPerspective(target_lbl[:, i * target_width_step:(i + 1) * target_width_step], np.linalg.inv(H), recon_lbl.shape[1::-1])
         recon_lbl = cv2.max(recon_lbl, piece)
     k = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-    recon_patch_closed = cv2.morphologyEx(recon_patch, cv2.MORPH_CLOSE, k)
-    recon_img_closed = cv2.morphologyEx(recon_img, cv2.MORPH_CLOSE, k)
     recon_lbl_closed = cv2.morphologyEx(recon_lbl, cv2.MORPH_CLOSE, k)
-    recon_img_closed2 = np.zeros_like(recon_img_closed)
-    recon_img_closed2[recon_lbl_closed>0] = recon_img_closed[recon_lbl_closed>0]
-    stacked = np.hstack([recon_patch_closed,recon_img_closed2,recon_lbl_closed]) # 아직 확대는 안들어갔음
 
-    fname = '%s_%d_%d%s' % (n, ly, lx, '.png')
+    recon_img[recon_lbl_closed == 0] = 0
+    recon_patch[recon_lbl_closed == 0] = 0
+
+    stacked = np.hstack([recon_patch, recon_img, recon_lbl_closed])
+    # cv2.imshow('stacked', stacked)
+    # cv2.waitKey()
+
+    fname = '%s_mold%d.png' % (n, idx_mold)
     cv2.imwrite(os.path.join(out_path, fname), stacked)
     print(fname, 'saved')
-
-
-

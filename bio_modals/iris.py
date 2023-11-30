@@ -125,10 +125,15 @@ class Iris(NeurotecBase):
             idx = polar_b.shape[0] - 20
         E0, filtersum = gabor_convolve(polar_b[idx:, :], 1, 18, 1, 0.5)
 
-        # thresholding with real_part, imaginary_part
-        rp = (E0[0].real > 0).astype(np.uint8) * 255
-        ip = (E0[0].imag > 0).astype(np.uint8) * 255
-        iris_code = np.stack([rp, ip, ip], axis=2)
+        # expt #4
+        magni = np.abs(E0[0])
+        magni = (magni - magni.min()) / (magni.max() - magni.min())
+        iris_code = (magni * 255).astype(np.uint8)
+
+        # thresholding with real_part, imaginary_part (expt #5)
+        # rp = (E0[0].real > 0).astype(np.uint8) * 255
+        # ip = (E0[0].imag > 0).astype(np.uint8) * 255
+        # iris_code = np.stack([rp, ip, ip], axis=2)
 
         zero_pupil_iris_code = np.zeros((*polar_b.shape, 3), dtype=np.uint8)
         zero_pupil_iris_code[idx:, ...] = iris_code.copy()

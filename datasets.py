@@ -230,6 +230,11 @@ class IDPreservePairMaskDataset(torch.utils.data.Dataset):
         transforms.Resize((image_width, image_width), antialias=True),
         transforms.Normalize([0.5] * condition_channels, [0.5] * condition_channels)
     ])
+    tf_mask = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Resize((image_width, image_width), antialias=True),
+        transforms.Normalize([0.5], [0.5])
+    ])
 
     def __init__(self, image_path_list):
         self.image_path_list = sorted(p.resolve() for p in Path(image_path_list).glob('**/*') if p.suffix in IMG_EXTENSIONS)
@@ -238,21 +243,21 @@ class IDPreservePairMaskDataset(torch.utils.data.Dataset):
         return len(self.image_path_list)
 
     def __getitem__(self, index):
-        img = Image.open(self.image_path_list[index]).convert('L')
+        img = Image.open(self.image_path_list[index])
 
         w, h = img.size
         w2 = int(w / 3)
         pair_left = img.crop((0, 0, w2, h))
-        pair_right = img.crop((w2, 0, w2 * 2, h))
-        mask = img.crop((w2 * 2, 0, w, h))
+        pair_right = img.crop((w2, 0, w2 * 2, h)).convert('L')
+        mask = img.crop((w2 * 2, 0, w, h)).convert('L')
 
-        # img_condi = img.crop((0, 0, w // 2, h))
-        # r, g, b = img_condi.split()
-        # img_condi = np.stack([b, r], axis=2)  # "r" is same as "g"
-        img_condi = np.stack([pair_left, mask], axis=2)
-        condi_image = self.tf_condi(img_condi)
+        t_real = self.tf_real(pair_right)
+        t_mask = self.tf_mask(mask)
 
-        real_image = self.tf_real(pair_right)
+        r, g, b = pair_left.split()
+        left = np.stack([r, b], axis=2)
+        t_condi = self.tf_condi(left)
+        t_condi = torch.cat((t_condi, t_mask), dim=0)
 
-        sample = {'condition_image': condi_image, 'real_image': real_image}
+        sample = {'condition_image': t_condi, 'real_image': t_real}
         return sample

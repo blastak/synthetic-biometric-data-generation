@@ -11,7 +11,7 @@ import numpy as np
 
 # npz_path = r'D:\Dataset\02_Iris\IITD\IITD_Database'
 # npz_path = r'D:\Dataset\02_Iris\CASIA-IrisV4(JPG)\CASIA-Iris-Interval'
-npz_path = r'D:\Dataset\02_Iris\OpenEDS\Semantic_Segmentation_Dataset\validation\images'
+npz_path = r'D:\Dataset\02_Iris\OpenEDS\Semantic_Segmentation_Dataset\train\images'
 
 npz_path_list = sorted(p.resolve() for p in Path(npz_path).glob('**/*') if p.suffix == '.npz')
 

@@ -50,7 +50,7 @@ if __name__ == '__main__':
     elif args.net_name == 'R_Enhancement':
         model = create_model(args.net_name, 2, 1, gpu_ids)  # 모달리티 별로 in, out 크기를 미리 설정해두고 사용하자
     elif args.net_name == 'D_IDPreserve':
-        model = create_model(args.net_name, 2, 1, gpu_ids)  # 모달리티 별로 in, out 크기를 미리 설정해두고 사용하자
+        model = create_model(args.net_name, 3, 1, gpu_ids)  # 모달리티 별로 in, out 크기를 미리 설정해두고 사용하자
     print(model)
 
     ########## make saving folder
