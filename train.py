@@ -41,7 +41,8 @@ if __name__ == '__main__':
     # train_dataset = create_dataset(args.net_name, args.data_dir)
     # train_dataset = datasets.ThumbnailIriscodeDataset(args.data_dir)
     # train_dataset = datasets.EnhancementIriscodeDataset(args.data_dir)
-    train_dataset = datasets.IDPreservePairMaskDataset(args.data_dir)
+    # train_dataset = datasets.IDPreservePairMaskDataset(args.data_dir)
+    train_dataset = datasets.IDPreserveTwoDataset(args.data_dir+'/condi',args.data_dir+'/orig')
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, generator=torch.Generator(device=device), num_workers=args.workers)
 
     ########## model settings
@@ -50,7 +51,7 @@ if __name__ == '__main__':
     elif args.net_name == 'R_Enhancement':
         model = create_model(args.net_name, 2, 1, gpu_ids)  # 모달리티 별로 in, out 크기를 미리 설정해두고 사용하자
     elif args.net_name == 'D_IDPreserve':
-        model = create_model(args.net_name, 3, 1, gpu_ids)  # 모달리티 별로 in, out 크기를 미리 설정해두고 사용하자
+        model = create_model(args.net_name, 2, 1, gpu_ids)  # 모달리티 별로 in, out 크기를 미리 설정해두고 사용하자
     print(model)
 
     ########## make saving folder

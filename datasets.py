@@ -206,7 +206,10 @@ class IDPreserveTwoDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         img1 = Image.open(self.image_path_list1[index]).convert('RGB')
-        condi_image = self.tf_real(img1)
+        # condi_image = self.tf_real(img1)
+        r, g, b = img1.split()
+        img_condi = np.stack([b, r], axis=2)  # "r" is same as "g"
+        condi_image = self.tf_condi(img_condi)
 
         img2 = Image.open(self.image_path_list2[index]).convert('RGB')
         target_image = self.tf_real(img2)
