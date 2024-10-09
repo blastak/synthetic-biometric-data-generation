@@ -37,17 +37,23 @@ class NeurotecBase(Base):
         pass
 
     def create_subject(self, img_or_file):
+        def cvt_buffer2NImage(buff, w, h, c):
+            pixelformat = self.SDK.Images.NPixelFormat.Rgb8U if cc == 3 else self.SDK.Images.NPixelFormat.Grayscale8U
+            nimage = self.SDK.Images.NImage.FromData(pixelformat, ww, hh, 0, ww * cc, self.SDK.IO.NBuffer.FromArray(buff.tobytes()))
+            return nimage
+
         if type(img_or_file) == str:
             nimage = self.SDK.Images.NImage.FromFile(img_or_file)
-        elif 'Path' in img_or_file.__class__.__name__:
+        elif 'pathlib' in str(img_or_file.__class__):
             nimage = self.SDK.Images.NImage.FromFile(img_or_file.as_posix())
-        elif type(img_or_file) == np.ndarray:
+        elif 'ndarray' in str(img_or_file.__class__):
             ww, hh = img_or_file.shape[1::-1]
-            cc = 1
-            if len(img_or_file.shape) == 3:
-                cc = img_or_file.shape[2]
-            pixelformat = self.SDK.Images.NPixelFormat.Rgb8U if cc == 3 else self.SDK.Images.NPixelFormat.Grayscale8U
-            nimage = self.SDK.Images.NImage.FromData(pixelformat, ww, hh, 0, ww * cc, self.SDK.IO.NBuffer.FromArray(img_or_file.tobytes()))
+            cc = 1 if len(img_or_file.shape) != 3 else 3
+            nimage = cvt_buffer2NImage(img_or_file, ww, hh, cc)
+        elif 'PIL' in str(img_or_file.__class__):
+            ww, hh = img_or_file.width, img_or_file.height
+            cc = 1 if len(img_or_file.getbands()) != 3 else 3
+            nimage = cvt_buffer2NImage(img_or_file, ww, hh, cc)
         else:
             raise NotImplementedError
 
