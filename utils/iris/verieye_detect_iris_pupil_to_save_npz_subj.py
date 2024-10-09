@@ -1,66 +1,50 @@
 """
-이 파일은 Path 내의 모든 이미지 파일에서 VeriEye로 Iris를 검출하고, 같은 경로에 결과를 subj와 npz로 저장한다.
-이미지를 자르거나 할때는 util02_save_cropimg_N_cropnpz_from_npz.py 를 사용하도록 한다
+dataset_root 하위의 모든 bmp나 jpg를 읽어서, VeriEye로 subject(<-quality포함) 검출 후, subject와 pupil,iris polygon을 저장한다.
+out_dir에 원본 데이터와 같은 폴더 구조로 subj, npz를 각각 저장한다.
 """
 
-import os
+import argparse
 from pathlib import Path
 
-import cv2
 import numpy as np
+from PIL import Image
 
 from bio_modals.iris import Iris
-from datasets import IMG_EXTENSIONS
 
-obj = Iris(r'C:\Neurotec_Biometric_12_4_SDK\Bin\Win64_x64')
+if __name__=='__main__':
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--dataset_root', type=str, default=r'D:\Dataset\02_Iris\01_IITD\IITD_Database', help='original data folder')
+    ap.add_argument('--out_dir', type=str, default=r'D:\Dataset\02_Iris\01_IITD\IITD_Database_iris_pupil', help='save folder')
+    ap.add_argument('--SDK_dir', type=str, default=r'C:\Neurotec_Biometric_12_4_SDK\Bin\Win64_x64', help='VeriEye SDK folder')
+    opt = ap.parse_args()
 
-# image_path_list = sorted(p.resolve() for p in Path(r'D:\Dataset\02_Iris\IITD\IITD_Database').glob('**/*') if p.suffix == '.bmp')
-# image_path_list = sorted(p.resolve() for p in Path(r'D:\Dataset\02_Iris\CASIA-IrisV4(JPG)\CASIA-Iris-Interval').glob('**/*') if p.suffix == '.jpg')
-image_path_list = sorted(p.resolve() for p in Path(r'D:\Dataset\02_Iris\OpenEDS\Semantic_Segmentation_Dataset\validation\images').glob('**/*') if p.suffix == '.png')
+    DATASET_ROOT = opt.dataset_root
+    OUT_DIR = opt.out_dir
+    SDK_DIR = opt.SDK_dir
 
-errors = []
-for idx in range(len(image_path_list)):
-    print(idx + 1, '/', len(image_path_list))
-    img_np = cv2.imread(image_path_list[idx].as_posix(), cv2.IMREAD_GRAYSCALE)
+    # 이미지 리스트 불러오기
+    pd = Path(DATASET_ROOT)
+    img_paths = list(p.absolute() for p in pd.glob('**/*') if p.suffix in ['.bmp', '.jpg'])
+    assert len(img_paths) != 0, 'empty list'
 
-    subject, quality = obj.create_subject(img_np)
-    if subject is None:
-        errors.append('subject is None %s' % image_path_list[idx])
-        continue
+    po = Path(OUT_DIR)  # 저장 경로를 위한 객체
 
-    d, f = os.path.split(image_path_list[idx])
-    n, e = os.path.splitext(f)
-    obj.save_subject_template(os.path.join(d, n + '.subj'), subject)
+    obj = Iris(SDK_DIR)
+    for i, img_path in enumerate(img_paths):
+        img = Image.open(img_path)
+        subject, quality = obj.create_subject(img)
+        if subject is None:
+            print('not detected', img_path)
+            continue
 
-    attrs = subject.Irises.get_Item(0).Objects
-    inners = []
-    outers = []
-    for attr in attrs:
-        for inner in attr.InnerBoundaryPoints:
-            inners.append([inner.X, inner.Y])
-        for outer in attr.OuterBoundaryPoints:
-            outers.append([outer.X, outer.Y])
-    inners = np.array(inners)
-    outers = np.array(outers)
+        # saving instance of VeriEye's subject as '.subj'
+        sp = po / img_path.relative_to(pd).with_suffix('.subj')
+        sp.parent.mkdir(parents=True, exist_ok=True)
+        obj.save_subject_template(sp.as_posix(), subject)
 
-    np.savez(os.path.join(d, n + '.npz'), inners=inners, outers=outers)
-
-print(errors)
-
-### error 가 출력안됐을때 사용
-# image_path_list = sorted(p.resolve() for p in Path(r'D:\Dataset\02_Iris\CASIA-IrisV4(JPG)\CASIA-Iris-Interval').glob('**/*') if p.suffix == '.jpg')
-# npz_path_list = sorted(p.resolve() for p in Path(r'D:\Dataset\02_Iris\CASIA-IrisV4(JPG)\CASIA-Iris-Interval').glob('**/*') if p.suffix == '.npz')
-#
-# idx_img = -1
-# for idx in range(len(npz_path_list)):
-#     d1, f1 = os.path.split(npz_path_list[idx])
-#     n1, e1 = os.path.splitext(f1)
-#
-#     while True:
-#         idx_img += 1
-#         d0, f0 = os.path.split(image_path_list[idx_img])
-#         n0, e0 = os.path.splitext(f0)
-#
-#         if n0 == n1:
-#             break
-#         print(image_path_list[idx_img])
+        # saving 32-sided polygons of pupil and iris as '.npz'
+        bp = sp.with_suffix('.npz')
+        att = subject.Irises.get_Item(0).Objects.get_Item(0)
+        inners = [[inner.X, inner.Y] for inner in att.InnerBoundaryPoints]
+        outers = [[outer.X, outer.Y] for outer in att.OuterBoundaryPoints]
+        np.savez(bp.as_posix(), inners=np.array(inners), outers=np.array(outers))
