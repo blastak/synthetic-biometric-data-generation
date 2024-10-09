@@ -1,68 +1,75 @@
 """
-util02 로 저장한 npz와 이미지로 iris code(576x66)를 만들어 낸다
-이때 레이블도 같이 변환하여 저장해둔다
+dataset_root와 유사한 폴더 구조로 저장되어 있는 segmap과 npz를 검색하고
+npz의 32-sided polygon 정보를 토대로
+576x66 크기의 iris_code 및 iris_code_segmap 정보를 저장한다.
 """
 
-import os
+import argparse
 from pathlib import Path
 
 import cv2
 import numpy as np
+from PIL import Image
 
-npz_path1 = r'D:\Dataset\02_Iris\IITD\IITD_Database'
-npz_path2 = r'D:\Dataset\02_Iris\CASIA-IrisV4(JPG)\CASIA-Iris-Interval'
+if __name__ == '__main__':
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--dataset_root', type=str, default=r'D:\Dataset\02_Iris\01_IITD\IITD_Database', help='original data folder')
+    ap.add_argument('--segmap_root', type=str, default=r'D:\Dataset\02_Iris\01_IITD\IITD_Database_segmap', help='segmap data folder')
+    ap.add_argument('--npz_root', type=str, default=r'D:\Dataset\02_Iris\01_IITD\IITD_Database_iris_pupil', help='npz data folder')
+    ap.add_argument('--out_dir', type=str, default=r'D:\Dataset\02_Iris\01_IITD\IITD_Database_iriscode', help='save folder')
+    opt = ap.parse_args()
 
-npz_path_list = sorted(p.resolve() for p in Path(r'D:\Dataset\02_Iris\IITD\detected').glob('**/*') if p.suffix == '.npz')
-npz_path_list.extend(sorted(p.resolve() for p in Path(r'D:\Dataset\02_Iris\CASIA-IrisV4(JPG)\detected').glob('**/*') if p.suffix == '.npz'))
+    DATASET_ROOT = opt.dataset_root
+    SEGMAP_ROOT = opt.segmap_root
+    NPZ_ROOT = opt.npz_root
+    OUT_DIR = opt.out_dir
+    assert DATASET_ROOT != OUT_DIR, '입력과 출력 경로가 같을 수 없음'
 
-out_path = r'D:\Dataset\02_Iris\code576x66_IITD_CASIA'
-os.makedirs(out_path, exist_ok=True)
+    piece_w = 18
+    piece_h = 66
+    pd = Path(DATASET_ROOT)
+    ps = Path(SEGMAP_ROOT)
+    pn = Path(NPZ_ROOT)
+    po = Path(OUT_DIR)
 
-target_height = 66
-target_width_step = 18
-for idx in range(len(npz_path_list)):
-    print(idx + 1, '/', len(npz_path_list))
+    img_paths = list(p.absolute() for p in pd.glob('**/*') if p.suffix in ['.bmp', '.jpg'])
+    assert len(img_paths) != 0
 
-    d, f = os.path.split(npz_path_list[idx])
-    n, e = os.path.splitext(f)
+    for p, img_p in enumerate(img_paths):
+        # segmap, npz 존재 검색
+        rp = img_p.relative_to(pd)
+        segmap_p = list(ps.glob(rp.with_suffix('.tiff').as_posix()))
+        npz_p = list(pn.glob(rp.with_suffix('.npz').as_posix()))
+        if len(segmap_p) != 1 or len(npz_p) != 1:
+            print('segmap 이나 npz가 없음(또는 중복)', p, rp)
+            continue
 
-    for ie in ['.bmp', '.jpg', '.png']:
-        if Path(d, n + ie).exists():
-            img_np = cv2.imread(os.path.join(d, n + ie), cv2.IMREAD_GRAYSCALE)
-            break
-    if Path(d, n + '.tiff').exists():
-        lbl_np = cv2.imread(os.path.join(d, n + '.tiff'), cv2.IMREAD_GRAYSCALE)
-    else:
-        raise AssertionError
-    hh, ww = img_np.shape[:2]
+        # 데이터 로드
+        img = Image.open(img_p).convert('L') # 원본 이미지 grayscale로 로드
+        segmap = Image.open(segmap_p[0]).convert('L') # segmap grayscale로 로드
+        npz = np.load(npz_p[0].as_posix())
 
-    loaded = np.load(npz_path_list[idx].as_posix())
-    inners = loaded['inners']
-    outers = loaded['outers']
+        # h=66, w=0 빈 이미지 만들어놓기
+        iris_code_img = np.empty([piece_h, 0], dtype=np.uint8)
+        iris_code_segmap = np.empty([piece_h, 0], dtype=np.uint8)
+        ni = np.vstack([npz['inners'], npz['inners'][0]]) # 연장술
+        no = np.vstack([npz['outers'], npz['outers'][0]])
+        p_tl, p_bl = ni[0], no[0]
+        for i in range(32):
+            p_tr, p_br = p_tl, p_bl
+            p_tl, p_bl = ni[i + 1], no[i + 1]
+            pts = np.float32([p_tl, p_tr, p_br, p_bl])  # CW
+            pts2 = np.float32([[0, 0], [piece_w, 0], [piece_w, piece_h], [0, piece_h]])
+            H = cv2.getPerspectiveTransform(pts, pts2)
+            piece = cv2.warpPerspective(np.array(img), H, [piece_w, piece_h])
+            iris_code_img = np.hstack([piece, iris_code_img]) # 오른쪽부터 채우기 (IITD의 normalized image와 좌표계를 유사하게 하기위해)
+            piece = cv2.warpPerspective(np.array(segmap), H, [piece_w, piece_h])
+            iris_code_segmap = np.hstack([piece, iris_code_segmap])
+        _, iris_code_segmap = cv2.threshold(iris_code_segmap, 127, 255, cv2.THRESH_BINARY) # 이진화를 하지 않으면 transform 시 gray 영역이 남아있음
 
-    inners1 = np.roll(inners[::-1], 1, axis=0)  # 역순으로 바꾸기
-    outers1 = np.roll(outers[::-1], 1, axis=0)
-    target_img = np.empty([target_height, 0])
-    target_lbl = np.empty([target_height, 0])
-    for i in range(len(inners1)):
-        p_tl = inners1[i]
-        p_bl = outers1[i]
-        try:
-            p_tr = inners1[i + 1]
-            p_br = outers1[i + 1]
-        except:
-            p_tr = inners1[0]
-            p_br = outers1[0]
-        pts = np.float32([p_tl, p_tr, p_br, p_bl])  # 반시계
-        pts2 = np.float32([[0, 0], [target_width_step, 0], [target_width_step, target_height], [0, target_height]])
-        H = cv2.getPerspectiveTransform(pts, pts2)
-        piece = cv2.warpPerspective(img_np, H, [target_width_step, target_height])
-        target_img = np.hstack([target_img, piece])
-        piece = cv2.warpPerspective(lbl_np, H, [target_width_step, target_height])
-        target_lbl = np.hstack([target_lbl, piece])
-    target_img = target_img.astype(dtype=np.uint8)
-    target_lbl = target_lbl.astype(dtype=np.uint8)
-    _, target_lbl = cv2.threshold(target_lbl, 127, 255, cv2.THRESH_BINARY)
-
-    cv2.imwrite(os.path.join(out_path, n + ie),target_img)
-    cv2.imwrite(os.path.join(out_path, n + '.tiff'),target_lbl)
+        # file save
+        out_img_p = po / rp.with_suffix('.bmp')
+        out_img_p.parent.mkdir(parents=True, exist_ok=True)
+        # Image.fromarray(iris_code_img).save(out_img_p) # Uncomment to use
+        out_segmap_p = out_img_p.with_suffix('.tiff')
+        # Image.fromarray(iris_code_segmap).save(out_segmap_p) # Uncomment to use
