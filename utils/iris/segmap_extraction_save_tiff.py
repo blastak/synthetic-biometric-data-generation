@@ -1,4 +1,9 @@
-# resize, file save, rename
+# No.01
+"""
+https://github.com/wowotou1022/IrisSegment내에 segmap 데이터를 불러와서
+IITD(또는 CASIA-IrisV4) 원본 데이터와 같은 크기로 다시 저장함
+폴더 구조도 원본 데이터와 동일하게 유지
+"""
 
 import argparse
 from pathlib import Path
@@ -28,8 +33,8 @@ if __name__ == '__main__':
     segmap_paths = list(p.absolute() for p in Path(SEG_MAP_IN_DIR).glob('**/*.tiff'))
     assert len(segmap_paths) != 0, 'empty list'
 
-    pd = Path(DATASET_DIR) # 파일 이름 참조를 위한 객체
-    po = Path(SEG_MAP_OUT_DIR) # 저장 경로를 위한 객체
+    pd = Path(DATASET_DIR)  # 파일 이름 참조를 위한 객체
+    po = Path(SEG_MAP_OUT_DIR)  # 저장 경로를 위한 객체
 
     for i, s in enumerate(segmap_paths):
         leaf_name = s.stem + '.jpg'
@@ -56,4 +61,3 @@ if __name__ == '__main__':
         # resize & save image
         img = Image.open(s).resize((w, h))
         # img.save(sp) # Uncomment to use
-

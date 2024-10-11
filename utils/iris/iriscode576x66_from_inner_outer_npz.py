@@ -1,3 +1,4 @@
+# No.03
 """
 dataset_root와 유사한 폴더 구조로 저장되어 있는 segmap과 npz를 검색하고
 npz의 32-sided polygon 정보를 토대로
@@ -45,27 +46,26 @@ if __name__ == '__main__':
             continue
 
         # 데이터 로드
-        img = Image.open(img_p).convert('L') # 원본 이미지 grayscale로 로드
-        segmap = Image.open(segmap_p[0]).convert('L') # segmap grayscale로 로드
+        img = Image.open(img_p).convert('L')  # 원본 이미지 grayscale로 로드
+        segmap = Image.open(segmap_p[0]).convert('L')  # segmap grayscale로 로드
         npz = np.load(npz_p[0].as_posix())
 
         # h=66, w=0 빈 이미지 만들어놓기
         iris_code_img = np.empty([piece_h, 0], dtype=np.uint8)
         iris_code_segmap = np.empty([piece_h, 0], dtype=np.uint8)
-        ni = np.vstack([npz['inners'], npz['inners'][0]]) # 연장술
+        ni = np.vstack([npz['inners'], npz['inners'][0]])  # 연장술
         no = np.vstack([npz['outers'], npz['outers'][0]])
-        p_tl, p_bl = ni[0], no[0]
         for i in range(32):
-            p_tr, p_br = p_tl, p_bl
             p_tl, p_bl = ni[i + 1], no[i + 1]
+            p_tr, p_br = ni[0], no[0]
             pts = np.float32([p_tl, p_tr, p_br, p_bl])  # CW
             pts2 = np.float32([[0, 0], [piece_w, 0], [piece_w, piece_h], [0, piece_h]])
             H = cv2.getPerspectiveTransform(pts, pts2)
-            piece = cv2.warpPerspective(np.array(img), H, [piece_w, piece_h])
-            iris_code_img = np.hstack([piece, iris_code_img]) # 오른쪽부터 채우기 (IITD의 normalized image와 좌표계를 유사하게 하기위해)
-            piece = cv2.warpPerspective(np.array(segmap), H, [piece_w, piece_h])
+            piece = cv2.warpPerspective(np.uint8(img), H, [piece_w, piece_h])
+            iris_code_img = np.hstack([piece, iris_code_img])  # 오른쪽부터 채우기 (IITD의 normalized image와 좌표계를 유사하게 하기위해)
+            piece = cv2.warpPerspective(np.uint8(segmap), H, [piece_w, piece_h])
             iris_code_segmap = np.hstack([piece, iris_code_segmap])
-        _, iris_code_segmap = cv2.threshold(iris_code_segmap, 127, 255, cv2.THRESH_BINARY) # 이진화를 하지 않으면 transform 시 gray 영역이 남아있음
+        _, iris_code_segmap = cv2.threshold(iris_code_segmap, 127, 255, cv2.THRESH_BINARY)  # 이진화를 하지 않으면 warping 중 발생한 gray value가 남아있음
 
         # file save
         out_img_p = po / rp.with_suffix('.bmp')

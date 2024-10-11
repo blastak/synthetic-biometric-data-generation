@@ -1,3 +1,4 @@
+# No.02
 """
 dataset_root 하위의 모든 bmp나 jpg를 읽어서, VeriEye로 subject(<-quality포함) 검출 후, subject와 pupil,iris polygon을 저장한다.
 out_dir에 원본 데이터와 같은 폴더 구조로 subj, npz를 각각 저장한다.
@@ -11,7 +12,7 @@ from PIL import Image
 
 from bio_modals.iris import Iris
 
-if __name__=='__main__':
+if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--dataset_root', type=str, default=r'D:\Dataset\02_Iris\01_IITD\IITD_Database', help='original data folder')
     ap.add_argument('--out_dir', type=str, default=r'D:\Dataset\02_Iris\01_IITD\IITD_Database_iris_pupil', help='save folder')
