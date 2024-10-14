@@ -1,3 +1,4 @@
+# No.04
 """
 576x66 img로 i40+o125 256x256 이미지를 만들건데,
 reconstruction 하고, 빈 부분을 inpainting 한 후에 256x256 저장
