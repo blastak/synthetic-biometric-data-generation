@@ -2,6 +2,9 @@
 """
 576x66 img로 i40+o125 256x256 이미지를 만들건데,
 reconstruction 하고, 빈 부분을 inpainting 한 후에 256x256 저장
+256x256 Iris-recon은 다음 두 가지 용도로 사용된다.
+1) 64x64로 만들어서 Random-network의 학습
+2) 256->64->256으로 만들어서 enhancement 학습
 """
 import argparse
 from pathlib import Path
