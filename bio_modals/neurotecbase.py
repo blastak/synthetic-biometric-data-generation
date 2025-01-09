@@ -66,18 +66,28 @@ class NeurotecBase(Base):
             nimage.VertResolution = 500  # code from Binh
             nmodal.Image = nimage
             subject.Fingers.Add(nmodal)
-        else:
+        elif self.__class__.__name__ == 'Iris':
             nmodal = self.SDK.Biometrics.NIris()
             nmodal.Image = nimage
             subject.Irises.Add(nmodal)
+        elif self.__class__.__name__ == 'Face':
+            nmodal = self.SDK.Biometrics.NFace()
+            nmodal.Image = nimage
+            subject.Faces.Add(nmodal)
+        else:
+            raise NotImplementedError
 
         if self.biometricClient.CreateTemplate(subject) != self.SDK.Biometrics.NBiometricStatus.Ok:
             return None, None
 
         if self.__class__.__name__ == 'Fingerprint':
             template_modal = subject.GetTemplate().Fingers
-        else:
+        elif self.__class__.__name__ == 'Iris':
             template_modal = subject.GetTemplate().Irises
+        elif self.__class__.__name__ == 'Face':
+            template_modal = subject.GetTemplate().Faces
+        else:
+            raise NotImplementedError
         quality = template_modal.Records.get_Item(0).Quality
 
         return subject, quality
@@ -85,8 +95,12 @@ class NeurotecBase(Base):
     def restore_image_from_subject(self, subject):
         if self.__class__.__name__ == 'Fingerprint':
             nimage = subject.Fingers.get_Item(0).Image
-        else:
+        elif self.__class__.__name__ == 'Iris':
             nimage = subject.Irises.get_Item(0).Image
+        elif self.__class__.__name__ == 'Face':
+            nimage = subject.Faces.get_Item(0).Image
+        else:
+            raise NotImplementedError
         image = np.frombuffer(self.SDK.IO.NBuffer.ToArray(nimage.GetPixels()), dtype=np.uint8)
         image = image.reshape((nimage.Height, nimage.Width))
         return image
