@@ -33,7 +33,7 @@ if __name__ == '__main__':
     pn = Path(NPZ_ROOT)
     po = Path(OUT_DIR)
 
-    img_paths = list(p.absolute() for p in pd.glob('**/*') if p.suffix in ['.bmp', '.jpg'])
+    img_paths = list(p.absolute() for p in pd.glob('**/*') if p.suffix.lower() in ['.bmp', '.jpg'])
     assert len(img_paths) != 0
 
     for p, img_p in enumerate(img_paths):

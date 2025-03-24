@@ -7,11 +7,7 @@ import torch
 import torchvision.transforms as transforms
 from PIL import Image
 
-IMG_EXTENSIONS = [
-    '.jpg', '.JPG', '.jpeg', '.JPEG',
-    '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP',
-    # '.tif', '.TIF', '.tiff', '.TIFF',
-]
+IMG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.ppm', '.bmp']
 
 
 def filter_path(path_list, modality, DB_name):
@@ -27,7 +23,7 @@ def filter_path(path_list, modality, DB_name):
 
 class ThumbnailDataset(torch.utils.data.Dataset):
     def __init__(self, image_folder_path):
-        self.image_path_list = sorted(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix in IMG_EXTENSIONS)
+        self.image_path_list = sorted(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix.lower() in IMG_EXTENSIONS)
         if 'iris' in image_folder_path.lower():
             self.image_path_list = filter_path(self.image_path_list, 'iris', 'IITD')
 
@@ -53,7 +49,7 @@ class ThumbnailDataset(torch.utils.data.Dataset):
 
 class ThumbnailIriscodeDataset(torch.utils.data.Dataset):
     def __init__(self, image_folder_path):
-        self.image_path_list = sorted(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix in IMG_EXTENSIONS)
+        self.image_path_list = sorted(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix.lower() in IMG_EXTENSIONS)
 
         self.image_width = 64
         self.tf = transforms.Compose([
@@ -87,7 +83,7 @@ class EnhancementDataset(torch.utils.data.Dataset):
     tf_condi = transforms.Compose([transforms.Resize(shrink_width, antialias=True), transforms.Resize(image_width, antialias=True)])
 
     def __init__(self, image_folder_path):
-        self.image_path_list = sorted(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix in IMG_EXTENSIONS)
+        self.image_path_list = sorted(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix.lower() in IMG_EXTENSIONS)
         if 'iris' in image_folder_path.lower():
             self.image_path_list = filter_path(self.image_path_list, 'iris', 'IITD')
 
@@ -117,7 +113,7 @@ class EnhancementIriscodeDataset(torch.utils.data.Dataset):
     patch_size = 64
 
     def __init__(self, image_folder_path):
-        self.image_path_list = sorted(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix in IMG_EXTENSIONS)
+        self.image_path_list = sorted(p.resolve() for p in Path(image_folder_path).glob('**/*') if p.suffix.lower() in IMG_EXTENSIONS)
 
     def __len__(self):
         return len(self.image_path_list)
@@ -158,7 +154,7 @@ class IDPreserveDataset(torch.utils.data.Dataset):
     ])
 
     def __init__(self, image_path_list):
-        self.image_path_list = sorted(p.resolve() for p in Path(image_path_list).glob('**/*') if p.suffix in IMG_EXTENSIONS)
+        self.image_path_list = sorted(p.resolve() for p in Path(image_path_list).glob('**/*') if p.suffix.lower() in IMG_EXTENSIONS)
 
     def __len__(self):
         return len(self.image_path_list)
@@ -198,8 +194,8 @@ class IDPreserveTwoDataset(torch.utils.data.Dataset):
     ])
 
     def __init__(self, image_path_list1, image_path_list2):
-        self.image_path_list1 = sorted(p.resolve() for p in Path(image_path_list1).glob('**/*') if p.suffix in IMG_EXTENSIONS)
-        self.image_path_list2 = sorted(p.resolve() for p in Path(image_path_list2).glob('**/*') if p.suffix in IMG_EXTENSIONS)
+        self.image_path_list1 = sorted(p.resolve() for p in Path(image_path_list1).glob('**/*') if p.suffix.lower() in IMG_EXTENSIONS)
+        self.image_path_list2 = sorted(p.resolve() for p in Path(image_path_list2).glob('**/*') if p.suffix.lower() in IMG_EXTENSIONS)
 
     def __len__(self):
         return len(self.image_path_list1)
@@ -240,7 +236,7 @@ class IDPreservePairMaskDataset(torch.utils.data.Dataset):
     ])
 
     def __init__(self, image_path_list):
-        self.image_path_list = sorted(p.resolve() for p in Path(image_path_list).glob('**/*') if p.suffix in IMG_EXTENSIONS)
+        self.image_path_list = sorted(p.resolve() for p in Path(image_path_list).glob('**/*') if p.suffix.lower() in IMG_EXTENSIONS)
 
     def __len__(self):
         return len(self.image_path_list)

@@ -49,7 +49,7 @@ if __name__ == '__main__':
     obj = Iris(r'C:\Neurotec_Biometric_12_4_SDK\Bin\Win64_x64')
 
     ##### 임시 - 시작
-    image_path_list = sorted(p.resolve() for p in Path(r"D:\Dataset\IITD\IITD Database").glob('**/*') if p.suffix in IMG_EXTENSIONS)
+    image_path_list = sorted(p.resolve() for p in Path(r"D:\Dataset\IITD\IITD Database").glob('**/*') if p.suffix.lower() in IMG_EXTENSIONS)
     image_path_list = filter_path(image_path_list, 'iris', 'IITD')
     for i, img_path in enumerate(image_path_list):
         s, q = obj.create_subject(img_path.as_posix())

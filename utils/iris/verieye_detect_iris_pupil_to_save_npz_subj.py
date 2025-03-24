@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     # 이미지 리스트 불러오기
     pd = Path(DATASET_ROOT)
-    img_paths = list(p.absolute() for p in pd.glob('**/*') if p.suffix in ['.bmp', '.jpg'])
+    img_paths = list(p.absolute() for p in pd.glob('**/*') if p.suffix.lower() in ['.bmp', '.jpg'])
     assert len(img_paths) != 0, 'empty list'
 
     po = Path(OUT_DIR)  # 저장 경로를 위한 객체
@@ -41,11 +41,11 @@ if __name__ == '__main__':
         # saving instance of VeriEye's subject as '.subj'
         sp = po / img_path.relative_to(pd).with_suffix('.subj')
         sp.parent.mkdir(parents=True, exist_ok=True)
-        obj.save_subject_template(sp.as_posix(), subject)
+        # obj.save_subject_template(sp.as_posix(), subject)  # Uncomment to use
 
         # saving 32-sided polygons of pupil and iris as '.npz'
         bp = sp.with_suffix('.npz')
         att = subject.Irises.get_Item(0).Objects.get_Item(0)
         inners = [[inner.X, inner.Y] for inner in att.InnerBoundaryPoints]
         outers = [[outer.X, outer.Y] for outer in att.OuterBoundaryPoints]
-        np.savez(bp.as_posix(), inners=np.array(inners), outers=np.array(outers))
+        # np.savez(bp.as_posix(), inners=np.array(inners), outers=np.array(outers))  # Uncomment to use
