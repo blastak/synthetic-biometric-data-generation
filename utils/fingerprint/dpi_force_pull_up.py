@@ -1,7 +1,8 @@
-'''
+# No.01
+"""
 DPI가 0으로 읽히는 BMP들을 불러와서 500으로 만들어서 다시 저장하는 코드.
 DPI 500은 NFIQ2.exe를 돌리는데에 필요하다
-'''
+"""
 
 from PIL import Image
 import argparse

@@ -80,15 +80,7 @@ class NeurotecBase(Base):
         if self.biometricClient.CreateTemplate(subject) != self.SDK.Biometrics.NBiometricStatus.Ok:
             return None, None
 
-        if self.__class__.__name__ == 'Fingerprint':
-            template_modal = subject.GetTemplate().Fingers
-        elif self.__class__.__name__ == 'Iris':
-            template_modal = subject.GetTemplate().Irises
-        elif self.__class__.__name__ == 'Face':
-            template_modal = subject.GetTemplate().Faces
-        else:
-            raise NotImplementedError
-        quality = template_modal.Records.get_Item(0).Quality
+        quality = self.get_quality_from_subject(subject)
 
         return subject, quality
 
@@ -104,6 +96,18 @@ class NeurotecBase(Base):
         image = np.frombuffer(self.SDK.IO.NBuffer.ToArray(nimage.GetPixels()), dtype=np.uint8)
         image = image.reshape((nimage.Height, nimage.Width))
         return image
+
+    def get_quality_from_subject(self, subject):
+        if self.__class__.__name__ == 'Fingerprint':
+            template_modal = subject.GetTemplate().Fingers
+        elif self.__class__.__name__ == 'Iris':
+            template_modal = subject.GetTemplate().Irises
+        elif self.__class__.__name__ == 'Face':
+            template_modal = subject.GetTemplate().Faces
+        else:
+            raise NotImplementedError
+        quality = template_modal.Records.get_Item(0).Quality
+        return quality
 
     def check_license(self, modules_for_activating):
         if not self.is_activated:
