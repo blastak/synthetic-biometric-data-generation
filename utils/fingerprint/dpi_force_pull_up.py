@@ -11,8 +11,8 @@ from pathlib import Path
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument('--in_dir', type=str, default=r'D:\Dataset\05_Fingerprint\3_DIG_ALL', help='input image folder')
-    ap.add_argument('--out_dir', type=str, default=r'D:\Dataset\05_Fingerprint\3_DIG_ALL_dpi500', help='output image folder')
+    ap.add_argument('--in_dir', type=str, default=r"E:\Dataset\05_Fingerprint\CVLabGenerated\only_normal_30000", help='input image folder')
+    ap.add_argument('--out_dir', type=str, default=r"E:\Dataset\05_Fingerprint\CVLabGenerated\only_normal_30000_dpi500", help='output image folder')
     ap.add_argument('--dpi', type=int, default=500, help='dpi value for converting')
     opt = ap.parse_args()
 
@@ -30,6 +30,6 @@ if __name__ == '__main__':
     os.makedirs(OUT_DIR, exist_ok=True)
 
     for p in img_paths:
-        img = Image.open(p)
+        img = Image.open(p).convert('L')
         out_path = Path(OUT_DIR) / p.name
-        # img.save(out_path, dpi=(DPI,DPI)) # Uncomment to use
+        img.save(out_path, dpi=(DPI,DPI)) # Uncomment to use
