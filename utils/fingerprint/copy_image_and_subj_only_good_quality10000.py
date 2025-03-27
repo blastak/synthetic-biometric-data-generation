@@ -5,12 +5,12 @@ image하고 subj를 quality 좋은순으로 10000개 뽑는 프로그램
 """
 
 import argparse
+import csv
+import os
+import shutil
 from pathlib import Path
 
 from bio_modals.fingerprint import Fingerprint
-import shutil
-import csv
-import os
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
@@ -43,11 +43,11 @@ if __name__ == '__main__':
     pdst = Path(DST_DIR)
     L2 = sorted(L, key=lambda l: l[1], reverse=True)[:10000]
 
-    with open(os.path.join(DST_DIR,'file&quality.csv'), 'w', newline='') as f:
+    with open(os.path.join(DST_DIR, 'file&quality.csv'), 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerows(L2)
 
-    D = {} # 'id':'sample개수'
+    D = {}  # 'id':'sample개수'
     for src_subj_path, quality in L2:
         # copy image file into another folder
         src_img_path = psrc_i / (src_subj_path.stem + '.BMP')
@@ -65,7 +65,7 @@ if __name__ == '__main__':
         except KeyError:
             D[id_fin] = 1
 
-    with open(os.path.join(DST_DIR,'count_fingers.csv'), 'w', newline='') as f:
+    with open(os.path.join(DST_DIR, 'count_fingers.csv'), 'w', newline='') as f:
         writer = csv.writer(f)
-        for k,v in D.items():
-            writer.writerow([k,v])
+        for k, v in D.items():
+            writer.writerow([k, v])
