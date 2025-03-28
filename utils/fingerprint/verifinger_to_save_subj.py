@@ -12,8 +12,8 @@ from bio_modals.fingerprint import Fingerprint
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument('--dataset_root', type=str, default=r"E:\Dataset\05_Fingerprint\CVLab2004\02_3_DIG_ALL_dpi500", help='original data folder')
-    ap.add_argument('--out_dir', type=str, default=r"E:\Dataset\05_Fingerprint\CVLab2004\03_3_DIG_ALL_dpi500_subj", help='save folder')
+    ap.add_argument('--dataset_root', type=str, default=r"E:\Dataset\05_Fingerprint\CVLabGenerated\only_normal_30000_dpi500", help='original data folder')
+    ap.add_argument('--out_dir', type=str, default=r"E:\Dataset\05_Fingerprint\CVLabGenerated\only_normal_30000_dpi500_subj", help='save folder')
     ap.add_argument('--SDK_dir', type=str, default=r'C:\Neurotec_Biometric_12_4_SDK\Bin\Win64_x64', help='VeriEye SDK folder')
     opt = ap.parse_args()
 
@@ -37,4 +37,4 @@ if __name__ == '__main__':
 
         # saving instance of VeriFinger's subject as '.subj'
         sp = po / img_path.relative_to(pd).with_suffix('.subj')
-        # obj.save_subject_template(sp.as_posix(), subject)  # Uncomment to use
+        obj.save_subject_template(sp.as_posix(), subject)  # Uncomment to use

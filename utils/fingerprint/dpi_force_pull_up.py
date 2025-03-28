@@ -32,4 +32,4 @@ if __name__ == '__main__':
     for p in img_paths:
         img = Image.open(p).convert('L')
         out_path = Path(OUT_DIR) / p.name
-        img.save(out_path, dpi=(DPI,DPI)) # Uncomment to use
+        img.save(out_path, dpi=(DPI,DPI))

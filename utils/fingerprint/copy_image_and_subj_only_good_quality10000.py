@@ -43,10 +43,6 @@ if __name__ == '__main__':
     pdst = Path(DST_DIR)
     L2 = sorted(L, key=lambda l: l[1], reverse=True)[:10000]
 
-    with open(os.path.join(DST_DIR, 'file&quality.csv'), 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerows(L2)
-
     D = {}  # 'id':'sample개수'
     for src_subj_path, quality in L2:
         # copy image file into another folder
@@ -65,7 +61,7 @@ if __name__ == '__main__':
         except KeyError:
             D[id_fin] = 1
 
-    with open(os.path.join(DST_DIR, 'count_fingers.csv'), 'w', newline='') as f:
+    with open(os.path.join(DST_DIR, '__count_fingers.csv'), 'w', newline='') as f:
         writer = csv.writer(f)
         for k, v in D.items():
             writer.writerow([k, v])

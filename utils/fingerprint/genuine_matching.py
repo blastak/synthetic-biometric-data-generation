@@ -1,6 +1,6 @@
 # No.04
 """
-지문 real vs. real genuine matching 해서 csv로 저장하는 프로그램
+지문 genuine matching 해서 csv로 저장하는 프로그램
 """
 
 import argparse
@@ -10,10 +10,13 @@ from pathlib import Path
 
 from bio_modals.fingerprint import Fingerprint
 
+real_or_synth = 'synth'
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     # ap.add_argument('--src_subj_dir', type=str, default=r"E:\Dataset\05_Fingerprint\CVLab2004\03_3_DIG_ALL_dpi500_subj", help='source subj folder')
     # ap.add_argument('--src_subj_dir', type=str, default=r"E:\Dataset\05_Fingerprint\CVLab2004\04_3_DIG_ALL_dpi500_10000", help='source subj folder')
+    ap.add_argument('--src_subj_dir', type=str, default=r"E:\Dataset\05_Fingerprint\CVLabGenerated\only_normal_30000_dpi500_subj", help='source subj folder')
     ap.add_argument('--SDK_dir', type=str, default=r'C:\Neurotec_Biometric_12_4_SDK\Bin\Win64_x64', help='VeriEye SDK folder')
     opt = ap.parse_args()
 
@@ -25,6 +28,8 @@ if __name__ == "__main__":
     subj_paths = list(p.absolute() for p in psrc_s.glob('**/*') if p.suffix.lower() in ['.subj'])
     assert len(subj_paths) != 0, 'empty list'
 
+    adder = 1 if real_or_synth == 'real' else 0
+
     # subject 불러와서 id별로 dict에 저장
     obj = Fingerprint(SDK_DIR)
     D = {}
@@ -32,7 +37,8 @@ if __name__ == "__main__":
         subject = obj.load_subject_template(subj_path.as_posix())
 
         filename_tokens = subj_path.stem.split('_')
-        id_fin = filename_tokens[1] + '_' + filename_tokens[3]  # ex) '00000003_R1'
+
+        id_fin = filename_tokens[0+adder] + '_' + filename_tokens[2+adder]  # ex) '00000003_R1'
 
         try:
             D[id_fin].append((subj_path, subject))
@@ -40,7 +46,7 @@ if __name__ == "__main__":
             D[id_fin] = [(subj_path, subject)]
 
     cnt = 0
-    f = open(os.path.join(SRC_SUBJ_DIR, f'__real_vs_real_genuine_matching.csv'), 'w', newline='')
+    f = open(os.path.join(SRC_SUBJ_DIR, '__%s_vs_%s_genuine_matching.csv' % (real_or_synth, real_or_synth)), 'w', newline='')
     writer = csv.writer(f)
     for key, L in D.items():
         if len(L) >= 2:
