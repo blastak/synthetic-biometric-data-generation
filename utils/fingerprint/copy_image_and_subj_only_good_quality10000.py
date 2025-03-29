@@ -17,7 +17,7 @@ if __name__ == '__main__':
     ap.add_argument('--src_img_dir', type=str, default=r"E:\Dataset\05_Fingerprint\CVLab2004\02_3_DIG_ALL_dpi500", help='source image folder')
     ap.add_argument('--src_subj_dir', type=str, default=r"E:\Dataset\05_Fingerprint\CVLab2004\03_3_DIG_ALL_dpi500_subj", help='source subj folder')
     ap.add_argument('--dst_dir', type=str, default=r"E:\Dataset\05_Fingerprint\CVLab2004\04_3_DIG_ALL_dpi500_10000", help='destination folder for both image and subj')
-    ap.add_argument('--SDK_dir', type=str, default=r'C:\Neurotec_Biometric_12_4_SDK\Bin\Win64_x64', help='VeriEye SDK folder')
+    ap.add_argument('--SDK_dir', type=str, default=r'C:\Neurotec_Biometric_12_4_SDK\Bin\Win64_x64', help='VeriFinger SDK folder')
     opt = ap.parse_args()
 
     SRC_IMG_DIR = opt.src_img_dir

@@ -1,6 +1,6 @@
 # No.05
 """
-지문 genuine matching 해서 csv로 저장하는 프로그램
+지문 impostor matching 해서 csv로 저장하는 프로그램
 """
 
 import argparse
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     # ap.add_argument('--src_subj_dir', type=str, default=r"E:\Dataset\05_Fingerprint\CVLab2004\03_3_DIG_ALL_dpi500_subj", help='source subj folder')
     # ap.add_argument('--src_subj_dir', type=str, default=r"E:\Dataset\05_Fingerprint\CVLab2004\04_3_DIG_ALL_dpi500_10000(for_training)", help='source subj folder')
     ap.add_argument('--src_subj_dir', type=str, default=r"E:\Dataset\05_Fingerprint\CVLabGenerated\03_only_normal_dpi500_subj", help='source subj folder')
-    ap.add_argument('--SDK_dir', type=str, default=r'C:\Neurotec_Biometric_12_4_SDK\Bin\Win64_x64', help='VeriEye SDK folder')
+    ap.add_argument('--SDK_dir', type=str, default=r'C:\Neurotec_Biometric_12_4_SDK\Bin\Win64_x64', help='VeriFinger SDK folder')
     opt = ap.parse_args()
 
     SRC_SUBJ_DIR = opt.src_subj_dir
